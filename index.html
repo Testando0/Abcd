@@ -3,109 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crisálida Play | Solução Elite</title>
-    
+    <title>Crisálida Play - Elite</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-    
     <style>
-        :root { --plyr-color-main: #E50914; }
-        body { background-color: #000; color: #fff; scroll-behavior: smooth; }
-        .netflix-shadow { box-shadow: inset 0 -60px 50px -10px rgba(0,0,0,0.8); }
-        .movie-card { transition: all 0.3s ease; }
-        .movie-card:hover { transform: scale(1.1); z-index: 50; }
-        #player-container { display: none; background: #000; }
+        body { background-color: #141414; color: white; font-family: Arial, sans-serif; }
+        .movie-card:hover { transform: scale(1.05); transition: 0.3s; z-index: 10; }
+        #player-overlay { display: none; background: rgba(0,0,0,0.9); }
     </style>
 </head>
 <body>
 
-    <nav class="fixed top-0 w-full z-[100] flex items-center justify-between px-10 py-5 bg-gradient-to-b from-black to-transparent">
-        <div class="text-3xl font-black text-red-600 tracking-tighter uppercase">Crisálida</div>
-        <input id="search-input" type="text" placeholder="Títulos, gente e gêneros" class="bg-black/50 border border-zinc-700 px-4 py-1 text-sm rounded-full w-64 focus:outline-none focus:border-red-600">
+    <nav class="p-5 bg-black flex justify-between items-center sticky top-0 z-50">
+        <h1 class="text-red-600 text-3xl font-black tracking-tighter">CRISÁLIDA</h1>
+        <div id="status" class="text-xs text-gray-500 italic">Conectando ao catálogo...</div>
     </nav>
 
-    <section id="hero" class="relative h-[85vh] flex items-center px-10 netflix-shadow bg-cover bg-center">
-        <div class="max-w-2xl z-10">
-            <h1 id="hero-title" class="text-6xl font-bold mb-4">...</h1>
-            <p id="hero-desc" class="text-lg text-zinc-300 mb-6 line-clamp-3">...</p>
-            <button id="hero-play" class="bg-white text-black font-bold py-3 px-8 rounded-md mr-4 hover:bg-zinc-200 transition">▶ Assistir</button>
-            <button class="bg-zinc-600/50 text-white font-bold py-3 px-8 rounded-md hover:bg-zinc-600/30 transition">ⓘ Saiba mais</button>
+    <header id="hero" class="h-[60vh] bg-cover bg-center flex items-end p-10 mb-10" style="background-image: linear-gradient(to top, #141414, transparent);">
+        <div>
+            <h2 id="hero-title" class="text-5xl font-bold">...</h2>
+            <p id="hero-desc" class="max-w-xl my-4 text-gray-300"></p>
+            <button id="hero-btn" class="bg-white text-black font-bold py-2 px-6 rounded hover:bg-gray-300">▶ Assistir Agora</button>
         </div>
-    </section>
+    </header>
 
-    <main class="relative -mt-32 px-10 pb-20">
-        <h2 class="text-2xl font-bold mb-6">Em alta na Irmandade</h2>
-        <div id="movie-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div class="px-10">
+        <h3 class="text-xl font-bold mb-4">Populares na Irmandade</h3>
+        <div id="movie-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5">
             </div>
-    </main>
-
-    <div id="player-container" class="fixed inset-0 z-[200] flex flex-col items-center justify-center p-4">
-        <button onclick="closePlayer()" class="absolute top-8 right-10 text-4xl text-white hover:text-red-600 transition">&times; Fechar</button>
-        <div class="w-full max-w-6xl aspect-video rounded-xl overflow-hidden shadow-2xl">
-            <video id="player" playsinline controls></video>
-        </div>
     </div>
 
-    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <div id="player-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <button onclick="closePlayer()" class="absolute top-5 right-10 text-4xl">&times;</button>
+        <div id="video-wrapper" class="w-full max-w-5xl aspect-video bg-black rounded-lg overflow-hidden shadow-2xl"></div>
+    </div>
 
     <script>
+        // SUA CHAVE INSERIDA AQUI
         const API_KEY = '8265bd1679663a7ea12ac168da84d2e8'; 
         const TMDB_BASE = 'https://api.themoviedb.org/3';
         const IMG_URL = 'https://image.tmdb.org/t/p/original';
-        
-        const playerElement = document.getElementById('player');
-        const plyr = new Plyr(playerElement);
 
-        // --- LÓGICA DA SOLUÇÃO 1: O SCRAPER/RESOLVER ---
-        async function watchMovie(tmdbId) {
-            // 1. Pegamos o ID do IMDB via TMDB
-            const movieData = await fetch(`${TMDB_BASE}/movie/${tmdbId}?api_key=${API_KEY}`).then(r => r.json());
-            const imdbId = movieData.imdb_id;
+        async function init() {
+            const statusEl = document.getElementById('status');
+            try {
+                console.log("Tentando carregar filmes...");
+                const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${API_KEY}&language=pt-BR`);
+                
+                if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
+                
+                const data = await res.json();
+                console.log("Dados recebidos:", data);
 
-            // 2. Chamamos o "Resolver" (O Scraper que limpa ads)
-            // Aqui usamos um endpoint que devolve o arquivo de vídeo puro
-            const sourceUrl = `https://vidsrc.xyz/embed/movie?imdb=${imdbId}`; // Exemplo de endpoint base
+                if (data.results && data.results.length > 0) {
+                    displayMovies(data.results);
+                    setHero(data.results[0]);
+                    statusEl.innerText = "Catálogo atualizado";
+                } else {
+                    statusEl.innerText = "Nenhum filme encontrado.";
+                }
 
-            // NOTA: Para extração 100% direta no Plyr em 2026, seu backend chamaria o scraper. 
-            // Para este demo, usaremos o modo sandbox avançado que "emula" a Solução 1 bloqueando ads.
-            
-            document.getElementById('player-container').style.display = 'flex';
-            
-            // Simulação da Solução 1 injetando o stream se tivéssemos o link .m3u8
-            // No caso de usar o provider direto:
-            playerElement.parentElement.innerHTML = `
-                <iframe src="${sourceUrl}" class="w-full h-full" allowfullscreen 
-                sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts"></iframe>`;
+            } catch (err) {
+                console.error("ERRO FATAL:", err);
+                statusEl.innerText = "Erro ao carregar. Verifique o Console (F12).";
+                alert("Erro ao conectar com TMDB. Verifique sua conexão ou se a chave está ativa.");
+            }
         }
 
-        // --- CARREGAMENTO DO SITE ---
-        async function init() {
-            const data = await fetch(`${TMDB_BASE}/movie/trending/movie/week?api_key=${API_KEY}&language=pt-BR`).then(r => r.json());
-            const movies = data.results;
+        function setHero(movie) {
+            document.getElementById('hero').style.backgroundImage = `linear-gradient(to top, #141414, transparent), url('${IMG_URL + movie.backdrop_path}')`;
+            document.getElementById('hero-title').innerText = movie.title;
+            document.getElementById('hero-desc').innerText = movie.overview;
+            document.getElementById('hero-btn').onclick = () => loadPlayer(movie.id);
+        }
 
-            // Preencher Hero
-            const top = movies[0];
-            document.getElementById('hero').style.backgroundImage = `linear-gradient(to top, #000, transparent), url('${IMG_URL + top.backdrop_path}')`;
-            document.getElementById('hero-title').innerText = top.title;
-            document.getElementById('hero-desc').innerText = top.overview;
-            document.getElementById('hero-play').onclick = () => watchMovie(top.id);
-
-            // Preencher Grade
+        function displayMovies(movies) {
             const grid = document.getElementById('movie-grid');
             grid.innerHTML = movies.map(m => `
-                <div class="movie-card cursor-pointer" onclick="watchMovie(${m.id})">
-                    <img src="${IMG_URL + m.poster_path}" class="rounded-md shadow-lg">
-                    <h3 class="text-sm mt-2 font-semibold truncate">${m.title}</h3>
+                <div class="movie-card cursor-pointer" onclick="loadPlayer(${m.id})">
+                    <img src="${IMG_URL + m.poster_path}" class="rounded shadow-md hover:shadow-red-900/50">
+                    <p class="mt-2 text-xs font-semibold truncate">${m.title}</p>
                 </div>
             `).join('');
         }
 
-        function closePlayer() {
-            document.getElementById('player-container').style.display = 'none';
-            document.querySelector('.w-full.max-w-6xl').innerHTML = '<video id="player" playsinline controls></video>';
+        async function loadPlayer(tmdbId) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerText = "Buscando servidor de vídeo...";
+            
+            // Puxa o IMDB ID para garantir compatibilidade máxima
+            const res = await fetch(`${TMDB_BASE}/movie/${tmdbId}?api_key=${API_KEY}`);
+            const movie = await res.json();
+            
+            const playerWrapper = document.getElementById('video-wrapper');
+            // Usando Vidsrc.to com sandbox para bloquear anúncios
+            playerWrapper.innerHTML = `
+                <iframe 
+                    src="https://vidsrc.to/embed/movie/${movie.imdb_id}" 
+                    style="width:100%; height:100%;" 
+                    frameborder="0" 
+                    allowfullscreen
+                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts">
+                </iframe>
+            `;
+            document.getElementById('player-overlay').style.display = 'flex';
+            statusEl.innerText = "Reproduzindo: " + movie.title;
         }
 
+        function closePlayer() {
+            document.getElementById('player-overlay').style.display = 'none';
+            document.getElementById('video-wrapper').innerHTML = '';
+        }
+
+        // Iniciar
         init();
     </script>
 </body>
