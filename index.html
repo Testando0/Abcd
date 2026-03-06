@@ -9,9 +9,10 @@
         :root {
             --bg-color: #080808;
             --surface-color: #121212;
-            --primary-color: #9d4edd; /* Roxo profundo */
+            --primary-color: #9d4edd;
             --secondary-color: #e0aaff;
             --text-color: #ffffff;
+            --error-color: #ff4d4d;
         }
         body {
             margin: 0;
@@ -161,6 +162,7 @@
             grid-column: 1 / -1;
             color: #888;
             font-size: 1.1rem;
+            padding: 20px;
         }
     </style>
 </head>
@@ -176,7 +178,7 @@
     </div>
 
     <div class="grid" id="mediaGrid">
-        <p class="status-msg">Extraindo dados dos repositórios e burlando CORS. Aguarde...</p>
+        <p class="status-msg" id="loadingText">Sincronizando repositórios de mídia. Aguarde...</p>
     </div>
 
     <div class="modal" id="playerModal">
@@ -196,20 +198,24 @@
     <script src="https://cdn.cdnjs.com/plyr/3.7.8/plyr.polyfilled.min.js"></script>
 
     <script>
-        // Repositórios combinados (Séries, Filmes e Canais Globais)
+        // Links diretos sem proxy. O GitHub Raw permite CORS.
         const REPOSITORIES = [
             "https://gist.githubusercontent.com/RaiserYT/44ad6818049969bd0dcc6507aad9782d/raw/",
             "https://iptv-org.github.io/iptv/categories/movies.m3u"
         ];
         
-        // Proxy AllOrigins - Extremamente estável para capturar texto puro
-        const PROXY_URL = "https://api.allorigins.win/raw?url=";
-        
+        // Backup de segurança para a interface não ficar vazia
+        const FALLBACK_MEDIA = [
+            { id: 'fb1', name: 'Big Buck Bunny (Filme Teste HD)', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/220px-Big_buck_bunny_poster_big.jpg', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
+            { id: 'fb2', name: 'Sintel (Filme Teste HD)', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Sintel_poster.jpg/220px-Sintel_poster.jpg', url: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8' }
+        ];
+
         let allMedia = [];
         let currentMedia = null;
         let showOnlyFavs = false;
 
         const grid = document.getElementById('mediaGrid');
+        const loadingText = document.getElementById('loadingText');
         const searchInput = document.getElementById('searchInput');
         const playerModal = document.getElementById('playerModal');
         const nowPlaying = document.getElementById('nowPlaying');
@@ -224,21 +230,43 @@
             controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen']
         });
 
-        let hls; // Controle da instância do HLS
+        let hls;
+
+        // Função para fetch com limite de tempo (timeout de 6 segundos)
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 6000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        }
 
         async function fetchRepositories() {
-            try {
-                for (const repo of REPOSITORIES) {
-                    const response = await fetch(PROXY_URL + encodeURIComponent(repo));
+            let errorLog = "";
+
+            for (const repo of REPOSITORIES) {
+                try {
+                    const response = await fetchWithTimeout(repo);
                     if (response.ok) {
                         const text = await response.text();
                         parseM3U(text);
+                    } else {
+                        errorLog += `Falha no repo: ${repo} (Status ${response.status})<br>`;
                     }
+                } catch (error) {
+                    console.error("Erro na requisição ou timeout:", repo, error);
+                    errorLog += `Timeout ou bloqueio ao acessar: ${repo}<br>`;
                 }
-                renderGrid(allMedia);
-            } catch (error) {
-                grid.innerHTML = `<p class="status-msg" style="color: #ff4444;">Erro na conexão com os repositórios: ${error.message}</p>`;
             }
+
+            // Se não carregou nada das listas, injeta o Fallback
+            if (allMedia.length === 0) {
+                allMedia = [...FALLBACK_MEDIA];
+                grid.innerHTML = `<p class="status-msg" style="color: var(--error-color);">Não foi possível carregar as listas externas. Modo offline/fallback ativado.<br><span style="font-size:0.8rem">${errorLog}</span></p>`;
+            }
+            
+            renderGrid(allMedia);
         }
 
         function parseM3U(content) {
@@ -247,21 +275,23 @@
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
+                if (!line) continue;
                 
                 if (line.startsWith('#EXTINF')) {
-                    // Extração do Nome
                     const nameParts = line.split(',');
                     tempMedia.name = nameParts.length > 1 ? nameParts[1].trim() : "Conteúdo Desconhecido";
                     
-                    // Extração do Logo
                     const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                    tempMedia.logo = logoMatch ? logoMatch[1] : "https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix";
+                    tempMedia.logo = logoMatch && logoMatch[1] ? logoMatch[1] : "https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix";
                     
-                    // Gerar um ID único baseado no nome
-                    tempMedia.id = btoa(unescape(encodeURIComponent(tempMedia.name))).substring(0, 15);
+                    // Gerar ID seguro
+                    try {
+                        tempMedia.id = btoa(unescape(encodeURIComponent(tempMedia.name))).substring(0, 15);
+                    } catch(e) {
+                        tempMedia.id = "id_" + Math.random().toString(36).substr(2, 9);
+                    }
                 } else if (line.startsWith('http')) {
                     tempMedia.url = line;
-                    // Evita duplicatas pela URL
                     if (tempMedia.name && !allMedia.some(m => m.url === tempMedia.url)) {
                         allMedia.push({...tempMedia});
                     }
@@ -270,7 +300,7 @@
             }
         }
 
-        // --- SISTEMA DE FAVORITOS (Usando localStorage) ---
+        // --- SISTEMA DE FAVORITOS (localStorage) ---
         function getFavorites() {
             const favs = localStorage.getItem('redflix_favorites');
             return favs ? JSON.parse(favs) : [];
@@ -291,7 +321,6 @@
             }
             localStorage.setItem('redflix_favorites', JSON.stringify(favs));
             
-            // Atualiza a grid instantaneamente se estiver na aba de favoritos
             if (showOnlyFavs) renderGrid(allMedia); 
         }
 
@@ -306,9 +335,7 @@
             let displayData = data;
             if (showOnlyFavs) {
                 const favs = getFavorites();
-                // Mostra apenas os itens da lista principal que estão favoritados
                 displayData = data.filter(m => favs.some(f => f.id === m.id));
-                // Se o cache principal estiver vazio (ex: offline), puxa direto do localStorage
                 if (displayData.length === 0 && data.length === 0) {
                     displayData = favs; 
                 }
@@ -319,8 +346,7 @@
                 return;
             }
 
-            // Otimização: Renderizar apenas os 100 primeiros para não travar o DOM inicial
-            const limite = displayData.slice(0, 150);
+            const limite = displayData.slice(0, 150); // Evita travar o navegador
 
             limite.forEach(media => {
                 const card = document.createElement('div');
@@ -349,23 +375,29 @@
                 saveFavBtn.style.background = "#222";
             }
 
-            if (hls) hls.destroy(); // Limpa buffer anterior
+            if (hls) hls.destroy();
 
             const url = media.url;
 
-            // Motor de reprodução inteligente
             if (url.includes('.m3u8')) {
                 if (Hls.isSupported()) {
                     hls = new Hls();
                     hls.loadSource(url);
                     hls.attachMedia(videoElement);
                     hls.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+                    
+                    // Tratamento de erro interno do HLS
+                    hls.on(Hls.Events.ERROR, function (event, data) {
+                        if (data.fatal) {
+                            console.error("Erro fatal no HLS:", data);
+                            nowPlaying.innerText = media.name + " (Erro de Transmissão)";
+                        }
+                    });
                 } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
                     videoElement.src = url;
                     videoElement.addEventListener('loadedmetadata', () => player.play());
                 }
             } else {
-                // Para .mp4, .mkv e links diretos
                 videoElement.src = url;
                 player.play();
             }
@@ -398,7 +430,6 @@
             renderGrid(allMedia);
         });
 
-        // Click fora do player para fechar
         playerModal.addEventListener('click', (e) => {
             if (e.target === playerModal) closePlayer();
         });
