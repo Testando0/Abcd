@@ -3,440 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redflix - Catálogo</title>
+    <title>Redflix - Painel</title>
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <style>
-        :root {
-            --bg-color: #080808;
-            --surface-color: #121212;
-            --primary-color: #9d4edd;
-            --secondary-color: #e0aaff;
-            --text-color: #ffffff;
-            --error-color: #ff4d4d;
+        :root { --primary: #9d4edd; --bg: #050505; --card: #111; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: white; }
+        header { padding: 20px; text-align: center; border-bottom: 2px solid var(--primary); background: #000; }
+        .menu { display: flex; justify-content: center; gap: 10px; padding: 20px; flex-wrap: wrap; }
+        
+        input, button { 
+            padding: 10px 15px; border-radius: 5px; border: 1px solid #333; 
+            background: #1a1a1a; color: white; outline: none;
         }
-        body {
-            margin: 0;
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            overflow-x: hidden;
+        button { cursor: pointer; border-color: var(--primary); transition: 0.3s; }
+        button:hover { background: var(--primary); }
+
+        .grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 20px; padding: 20px; 
         }
-        header {
-            background-color: var(--surface-color);
-            padding: 25px;
-            text-align: center;
-            border-bottom: 2px solid var(--primary-color);
-            box-shadow: 0 4px 20px rgba(157, 78, 221, 0.2);
+        .card { 
+            background: var(--card); border-radius: 10px; overflow: hidden; 
+            transition: 0.3s; cursor: pointer; border: 1px solid #222;
         }
-        header h1 {
-            margin: 0;
-            color: var(--primary-color);
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            font-size: 2rem;
+        .card:hover { transform: scale(1.05); border-color: var(--primary); }
+        .card img { width: 100%; height: 250px; object-fit: cover; }
+        .card-name { padding: 10px; font-size: 0.9rem; text-align: center; }
+
+        /* Player Modal */
+        .modal { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center;
         }
-        .controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            padding: 25px;
-            flex-wrap: wrap;
-        }
-        input[type="text"] {
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            background-color: var(--surface-color);
-            color: white;
-            width: 100%;
-            max-width: 400px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus {
-            border-color: var(--primary-color);
-        }
-        .fav-btn {
-            background: transparent;
-            border: 1px solid var(--primary-color);
-            color: var(--secondary-color);
-            padding: 12px 25px;
-            cursor: pointer;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        .fav-btn:hover {
-            background: rgba(157, 78, 221, 0.1);
-        }
-        .fav-btn.active {
-            background: var(--primary-color);
-            color: white;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 25px;
-            padding: 20px 40px;
-            min-height: 50vh;
-        }
-        .card {
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            border: 1px solid #222;
-            display: flex;
-            flex-direction: column;
-        }
-        .card:hover {
-            transform: translateY(-8px);
-            border-color: var(--primary-color);
-            box-shadow: 0 8px 25px rgba(157, 78, 221, 0.3);
-        }
-        .card img {
-            width: 100%;
-            height: 320px;
-            object-fit: cover;
-            background-color: #1a1a1a;
-        }
-        .card-info {
-            padding: 15px;
-            text-align: center;
-            font-size: 0.95rem;
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        /* Modal do Player */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.98);
-            z-index: 1000;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-header {
-            width: 90%;
-            max-width: 1100px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .player-actions button {
-            background: #222;
-            color: white;
-            border: 1px solid #444;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-left: 10px;
-            transition: 0.2s;
-        }
-        .player-actions button:hover {
-            background: #333;
-        }
-        .player-actions .save-fav {
-            border-color: var(--primary-color);
-            color: var(--secondary-color);
-        }
-        .player-container {
-            width: 90%;
-            max-width: 1100px;
-            aspect-ratio: 16/9;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
-        }
-        .status-msg {
-            text-align: center;
-            width: 100%;
-            grid-column: 1 / -1;
-            color: #888;
-            font-size: 1.1rem;
-            padding: 20px;
-        }
+        .player-box { width: 90%; max-width: 1000px; aspect-ratio: 16/9; }
+        .close-modal { margin-bottom: 10px; align-self: flex-end; color: #ff4d4d; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Redflix</h1>
-    </header>
+<header><h1>REDFLIX</h1></header>
 
-    <div class="controls">
-        <input type="text" id="searchInput" placeholder="Buscar filmes, séries ou canais...">
-        <button class="fav-btn" id="toggleFavs">Meus Favoritos</button>
+<div class="menu">
+    <input type="text" id="m3uUrl" placeholder="Cole o link .m3u ou Gist aqui...">
+    <button onclick="loadExternalList()">Carregar Lista</button>
+    <button onclick="renderGrid(localData)">Lista Padrão</button>
+</div>
+
+<div class="grid" id="mainGrid"></div>
+
+<div class="modal" id="videoModal">
+    <div class="player-box">
+        <div class="close-modal" onclick="closePlayer()">FECHAR [X]</div>
+        <video id="player" playsinline controls></video>
     </div>
+</div>
 
-    <div class="grid" id="mediaGrid">
-        <p class="status-msg" id="loadingText">Sincronizando repositórios de mídia. Aguarde...</p>
-    </div>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.min.js"></script>
 
-    <div class="modal" id="playerModal">
-        <div class="modal-header">
-            <h2 id="nowPlaying" style="color: var(--secondary-color); margin: 0; font-size: 1.4rem; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
-            <div class="player-actions">
-                <button class="save-fav" id="saveFavBtn">⭐ Favoritar</button>
-                <button id="closeModal">Fechar Player</button>
-            </div>
-        </div>
-        <div class="player-container">
-            <video id="main-player" controls crossorigin playsinline></video>
-        </div>
-    </div>
+<script>
+    // LISTA LOCAL PARA NUNCA FICAR VAZIO (CANAIS E FILMES TESTE)
+    const localData = [
+        { name: "Big Buck Bunny (Filme)", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/220px-Big_buck_bunny_poster_big.jpg" },
+        { name: "Sintel (Série)", url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Sintel_poster.jpg/220px-Sintel_poster.jpg" },
+        { name: "Tears of Steel", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Tears_of_Steel_poster.jpg/220px-Tears_of_Steel_poster.jpg" }
+    ];
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script src="https://cdn.cdnjs.com/plyr/3.7.8/plyr.polyfilled.min.js"></script>
+    const grid = document.getElementById('mainGrid');
+    const playerElement = document.getElementById('player');
+    const modal = document.getElementById('videoModal');
+    const plyr = new Plyr(playerElement);
+    let hls;
 
-    <script>
-        // Links diretos sem proxy. O GitHub Raw permite CORS.
-        const REPOSITORIES = [
-            "https://gist.githubusercontent.com/RaiserYT/44ad6818049969bd0dcc6507aad9782d/raw/",
-            "https://iptv-org.github.io/iptv/categories/movies.m3u"
-        ];
+    // Renderiza a interface
+    function renderGrid(data) {
+        grid.innerHTML = '';
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <img src="${item.logo}" onerror="this.src='https://via.placeholder.com/200x250/111/9d4edd?text=Redflix'">
+                <div class="card-name">${item.name}</div>
+            `;
+            div.onclick = () => openPlayer(item.url);
+            grid.appendChild(div);
+        });
+    }
+
+    // Carrega lista via URL (Bypassing CORS via proxy alternativo se necessário)
+    async function loadExternalList() {
+        const url = document.getElementById('m3uUrl').value;
+        if(!url) return alert("Cole um link válido!");
         
-        // Backup de segurança para a interface não ficar vazia
-        const FALLBACK_MEDIA = [
-            { id: 'fb1', name: 'Big Buck Bunny (Filme Teste HD)', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/220px-Big_buck_bunny_poster_big.jpg', url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
-            { id: 'fb2', name: 'Sintel (Filme Teste HD)', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Sintel_poster.jpg/220px-Sintel_poster.jpg', url: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8' }
-        ];
+        grid.innerHTML = '<p>Processando lista...</p>';
+        try {
+            // Tentativa direta (mais rápida)
+            let response = await fetch(url);
+            if(!response.ok) throw new Error();
+            const text = await response.text();
+            parseM3U(text);
+        } catch (e) {
+            // Se falhar, tenta via Proxy de emergência
+            try {
+                const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                const text = await response.text();
+                parseM3U(text);
+            } catch (err) {
+                alert("Erro ao acessar a lista. O link pode estar offline ou bloqueado.");
+                renderGrid(localData);
+            }
+        }
+    }
 
-        let allMedia = [];
-        let currentMedia = null;
-        let showOnlyFavs = false;
+    function parseM3U(content) {
+        const items = [];
+        const lines = content.split('\n');
+        let currentItem = {};
 
-        const grid = document.getElementById('mediaGrid');
-        const loadingText = document.getElementById('loadingText');
-        const searchInput = document.getElementById('searchInput');
-        const playerModal = document.getElementById('playerModal');
-        const nowPlaying = document.getElementById('nowPlaying');
-        const videoElement = document.getElementById('main-player');
-        const closeModalBtn = document.getElementById('closeModal');
-        const saveFavBtn = document.getElementById('saveFavBtn');
-        const toggleFavsBtn = document.getElementById('toggleFavs');
-
-        // Configuração do Player Plyr
-        const player = new Plyr(videoElement, {
-            captions: { active: true, update: true, language: 'pt' },
-            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen']
+        lines.forEach(line => {
+            if (line.includes('#EXTINF')) {
+                currentItem.name = line.split(',')[1] || "Sem Nome";
+                const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                currentItem.logo = logoMatch ? logoMatch[1] : "";
+            } else if (line.startsWith('http')) {
+                currentItem.url = line.trim();
+                items.push({...currentItem});
+                currentItem = {};
+            }
         });
+        renderGrid(items);
+    }
 
-        let hls;
+    function openPlayer(url) {
+        modal.style.display = 'flex';
+        if (hls) hls.destroy();
 
-        // Função para fetch com limite de tempo (timeout de 6 segundos)
-        async function fetchWithTimeout(resource, options = {}) {
-            const { timeout = 6000 } = options;
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(resource, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
-        }
-
-        async function fetchRepositories() {
-            let errorLog = "";
-
-            for (const repo of REPOSITORIES) {
-                try {
-                    const response = await fetchWithTimeout(repo);
-                    if (response.ok) {
-                        const text = await response.text();
-                        parseM3U(text);
-                    } else {
-                        errorLog += `Falha no repo: ${repo} (Status ${response.status})<br>`;
-                    }
-                } catch (error) {
-                    console.error("Erro na requisição ou timeout:", repo, error);
-                    errorLog += `Timeout ou bloqueio ao acessar: ${repo}<br>`;
-                }
+        if (url.includes('.m3u8')) {
+            if (Hls.isSupported()) {
+                hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(playerElement);
             }
-
-            // Se não carregou nada das listas, injeta o Fallback
-            if (allMedia.length === 0) {
-                allMedia = [...FALLBACK_MEDIA];
-                grid.innerHTML = `<p class="status-msg" style="color: var(--error-color);">Não foi possível carregar as listas externas. Modo offline/fallback ativado.<br><span style="font-size:0.8rem">${errorLog}</span></p>`;
-            }
-            
-            renderGrid(allMedia);
+        } else {
+            playerElement.src = url;
         }
+        plyr.play();
+    }
 
-        function parseM3U(content) {
-            const lines = content.split('\n');
-            let tempMedia = {};
+    function closePlayer() {
+        modal.style.display = 'none';
+        plyr.stop();
+        if(hls) hls.destroy();
+    }
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-                
-                if (line.startsWith('#EXTINF')) {
-                    const nameParts = line.split(',');
-                    tempMedia.name = nameParts.length > 1 ? nameParts[1].trim() : "Conteúdo Desconhecido";
-                    
-                    const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                    tempMedia.logo = logoMatch && logoMatch[1] ? logoMatch[1] : "https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix";
-                    
-                    // Gerar ID seguro
-                    try {
-                        tempMedia.id = btoa(unescape(encodeURIComponent(tempMedia.name))).substring(0, 15);
-                    } catch(e) {
-                        tempMedia.id = "id_" + Math.random().toString(36).substr(2, 9);
-                    }
-                } else if (line.startsWith('http')) {
-                    tempMedia.url = line;
-                    if (tempMedia.name && !allMedia.some(m => m.url === tempMedia.url)) {
-                        allMedia.push({...tempMedia});
-                    }
-                    tempMedia = {};
-                }
-            }
-        }
-
-        // --- SISTEMA DE FAVORITOS (localStorage) ---
-        function getFavorites() {
-            const favs = localStorage.getItem('redflix_favorites');
-            return favs ? JSON.parse(favs) : [];
-        }
-
-        function toggleFavorite(media) {
-            let favs = getFavorites();
-            const exists = favs.find(f => f.id === media.id);
-            
-            if (exists) {
-                favs = favs.filter(f => f.id !== media.id);
-                saveFavBtn.innerText = "⭐ Favoritar";
-                saveFavBtn.style.background = "#222";
-            } else {
-                favs.push(media);
-                saveFavBtn.innerText = "❌ Remover Favorito";
-                saveFavBtn.style.background = "var(--primary-color)";
-            }
-            localStorage.setItem('redflix_favorites', JSON.stringify(favs));
-            
-            if (showOnlyFavs) renderGrid(allMedia); 
-        }
-
-        function checkIsFavorite(mediaId) {
-            return getFavorites().some(f => f.id === mediaId);
-        }
-
-        // --- RENDERIZAÇÃO ---
-        function renderGrid(data) {
-            grid.innerHTML = '';
-            
-            let displayData = data;
-            if (showOnlyFavs) {
-                const favs = getFavorites();
-                displayData = data.filter(m => favs.some(f => f.id === m.id));
-                if (displayData.length === 0 && data.length === 0) {
-                    displayData = favs; 
-                }
-            }
-
-            if (displayData.length === 0) {
-                grid.innerHTML = '<p class="status-msg">Nenhum título encontrado.</p>';
-                return;
-            }
-
-            const limite = displayData.slice(0, 150); // Evita travar o navegador
-
-            limite.forEach(media => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <img src="${media.logo}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix'">
-                    <div class="card-info" title="${media.name}">${media.name}</div>
-                `;
-                card.onclick = () => openPlayer(media);
-                grid.appendChild(card);
-            });
-        }
-
-        // --- CONTROLE DO PLAYER ---
-        function openPlayer(media) {
-            currentMedia = media;
-            nowPlaying.innerText = media.name;
-            playerModal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-
-            if (checkIsFavorite(media.id)) {
-                saveFavBtn.innerText = "❌ Remover Favorito";
-                saveFavBtn.style.background = "var(--primary-color)";
-            } else {
-                saveFavBtn.innerText = "⭐ Favoritar";
-                saveFavBtn.style.background = "#222";
-            }
-
-            if (hls) hls.destroy();
-
-            const url = media.url;
-
-            if (url.includes('.m3u8')) {
-                if (Hls.isSupported()) {
-                    hls = new Hls();
-                    hls.loadSource(url);
-                    hls.attachMedia(videoElement);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => player.play());
-                    
-                    // Tratamento de erro interno do HLS
-                    hls.on(Hls.Events.ERROR, function (event, data) {
-                        if (data.fatal) {
-                            console.error("Erro fatal no HLS:", data);
-                            nowPlaying.innerText = media.name + " (Erro de Transmissão)";
-                        }
-                    });
-                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                    videoElement.src = url;
-                    videoElement.addEventListener('loadedmetadata', () => player.play());
-                }
-            } else {
-                videoElement.src = url;
-                player.play();
-            }
-        }
-
-        function closePlayer() {
-            playerModal.style.display = 'none';
-            document.body.style.overflow = 'auto';
-            player.stop();
-            if (hls) hls.destroy();
-            videoElement.src = '';
-        }
-
-        // --- EVENTOS ---
-        closeModalBtn.addEventListener('click', closePlayer);
-        
-        saveFavBtn.addEventListener('click', () => {
-            if (currentMedia) toggleFavorite(currentMedia);
-        });
-
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = allMedia.filter(m => m.name.toLowerCase().includes(term));
-            renderGrid(filtered);
-        });
-
-        toggleFavsBtn.addEventListener('click', () => {
-            showOnlyFavs = !showOnlyFavs;
-            toggleFavsBtn.classList.toggle('active');
-            renderGrid(allMedia);
-        });
-
-        playerModal.addEventListener('click', (e) => {
-            if (e.target === playerModal) closePlayer();
-        });
-
-        // Start
-        fetchRepositories();
-
-    </script>
+    // Inicializa com dados locais para não travar
+    renderGrid(localData);
+</script>
 </body>
 </html>
