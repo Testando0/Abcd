@@ -3,112 +3,409 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redzin TV | Provedor de Canais</title>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <title>Redflix - Catálogo</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <style>
-        :root { --primary: #8a2be2; --bg: #0a0a0a; --sidebar: #121212; }
-        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Sidebar Estilizada */
-        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid #222; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 25px; background: linear-gradient(45deg, #4b0082, var(--primary)); text-align: center; }
-        .sidebar-header h2 { margin: 0; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; }
-        
-        .channel-list { flex: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; }
-        .channel-item { 
-            padding: 12px 15px; margin-bottom: 8px; border-radius: 8px; 
-            background: #1e1e1e; cursor: pointer; transition: all 0.3s ease;
-            display: flex; align-items: center; border: 1px solid transparent;
+        :root {
+            --bg-color: #080808;
+            --surface-color: #121212;
+            --primary-color: #9d4edd; /* Roxo profundo */
+            --secondary-color: #e0aaff;
+            --text-color: #ffffff;
         }
-        .channel-item:hover { background: #2a2a2a; border-color: var(--primary); transform: translateX(5px); }
-        .channel-item img { width: 35px; height: 35px; margin-right: 12px; object-fit: contain; border-radius: 4px; }
-        
-        /* Player Central */
-        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .video-wrapper { width: 100%; max-width: 1100px; aspect-ratio: 16/9; position: relative; }
-        .video-js { width: 100%; height: 100%; border-radius: 12px; box-shadow: 0 0 40px rgba(138, 43, 226, 0.3); }
-        
-        .status-bar { margin-top: 20px; color: #aaa; font-size: 0.9rem; }
-        #current-channel { color: var(--primary); font-weight: bold; }
-
-        /* Scrollbar Custom */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+        header {
+            background-color: var(--surface-color);
+            padding: 25px;
+            text-align: center;
+            border-bottom: 2px solid var(--primary-color);
+            box-shadow: 0 4px 20px rgba(157, 78, 221, 0.2);
+        }
+        header h1 {
+            margin: 0;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 2rem;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 25px;
+            flex-wrap: wrap;
+        }
+        input[type="text"] {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background-color: var(--surface-color);
+            color: white;
+            width: 100%;
+            max-width: 400px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+        .fav-btn {
+            background: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--secondary-color);
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .fav-btn:hover {
+            background: rgba(157, 78, 221, 0.1);
+        }
+        .fav-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+            padding: 20px 40px;
+            min-height: 50vh;
+        }
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 25px rgba(157, 78, 221, 0.3);
+        }
+        .card img {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            background-color: #1a1a1a;
+        }
+        .card-info {
+            padding: 15px;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Modal do Player */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.98);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-header {
+            width: 90%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .player-actions button {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: 0.2s;
+        }
+        .player-actions button:hover {
+            background: #333;
+        }
+        .player-actions .save-fav {
+            border-color: var(--primary-color);
+            color: var(--secondary-color);
+        }
+        .player-container {
+            width: 90%;
+            max-width: 1100px;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+        }
+        .status-msg {
+            text-align: center;
+            width: 100%;
+            grid-column: 1 / -1;
+            color: #888;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body>
 
-    <aside class="sidebar">
-        <div class="sidebar-header"><h2>CRISÁLIDA TV</h2></div>
-        <ul class="channel-list" id="playlist">
-            <li style="padding: 20px; text-align: center;">Carregando canais...</li>
-        </ul>
-    </aside>
+    <header>
+        <h1>Redflix</h1>
+    </header>
 
-    <main class="main-content">
-        <div class="video-wrapper">
-            <video id="main-player" class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto"></video>
-        </div>
-        <div class="status-bar">
-            Sintonizado em: <span id="current-channel">Nenhum canal selecionado</span>
-        </div>
-    </main>
+    <div class="controls">
+        <input type="text" id="searchInput" placeholder="Buscar filmes, séries ou canais...">
+        <button class="fav-btn" id="toggleFavs">Meus Favoritos</button>
+    </div>
 
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <div class="grid" id="mediaGrid">
+        <p class="status-msg">Extraindo dados dos repositórios e burlando CORS. Aguarde...</p>
+    </div>
+
+    <div class="modal" id="playerModal">
+        <div class="modal-header">
+            <h2 id="nowPlaying" style="color: var(--secondary-color); margin: 0; font-size: 1.4rem; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
+            <div class="player-actions">
+                <button class="save-fav" id="saveFavBtn">⭐ Favoritar</button>
+                <button id="closeModal">Fechar Player</button>
+            </div>
+        </div>
+        <div class="player-container">
+            <video id="main-player" controls crossorigin playsinline></video>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script src="https://cdn.cdnjs.com/plyr/3.7.8/plyr.polyfilled.min.js"></script>
 
     <script>
-        const PROXY = "https://proxycors.io/api/v1/proxy?url=";
-        const GIST_URL = "https://gist.githubusercontent.com/BrasilChannel/77d80bf7b68011726d2a34ca9c6ad219/raw/";
+        // Repositórios combinados (Séries, Filmes e Canais Globais)
+        const REPOSITORIES = [
+            "https://gist.githubusercontent.com/RaiserYT/44ad6818049969bd0dcc6507aad9782d/raw/",
+            "https://iptv-org.github.io/iptv/categories/movies.m3u"
+        ];
         
-        const player = videojs('main-player');
-        const playlistElement = document.getElementById('playlist');
+        // Proxy AllOrigins - Extremamente estável para capturar texto puro
+        const PROXY_URL = "https://api.allorigins.win/raw?url=";
+        
+        let allMedia = [];
+        let currentMedia = null;
+        let showOnlyFavs = false;
 
-        async function initTV() {
+        const grid = document.getElementById('mediaGrid');
+        const searchInput = document.getElementById('searchInput');
+        const playerModal = document.getElementById('playerModal');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const videoElement = document.getElementById('main-player');
+        const closeModalBtn = document.getElementById('closeModal');
+        const saveFavBtn = document.getElementById('saveFavBtn');
+        const toggleFavsBtn = document.getElementById('toggleFavs');
+
+        // Configuração do Player Plyr
+        const player = new Plyr(videoElement, {
+            captions: { active: true, update: true, language: 'pt' },
+            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen']
+        });
+
+        let hls; // Controle da instância do HLS
+
+        async function fetchRepositories() {
             try {
-                const response = await fetch(PROXY + encodeURIComponent(GIST_URL));
-                const data = await response.text();
-                parseM3U(data);
-            } catch (err) {
-                playlistElement.innerHTML = `<li style="color:red; padding:20px;">Erro ao carregar lista via Proxy.</li>`;
+                for (const repo of REPOSITORIES) {
+                    const response = await fetch(PROXY_URL + encodeURIComponent(repo));
+                    if (response.ok) {
+                        const text = await response.text();
+                        parseM3U(text);
+                    }
+                }
+                renderGrid(allMedia);
+            } catch (error) {
+                grid.innerHTML = `<p class="status-msg" style="color: #ff4444;">Erro na conexão com os repositórios: ${error.message}</p>`;
             }
         }
 
         function parseM3U(content) {
-            playlistElement.innerHTML = "";
             const lines = content.split('\n');
-            let currentChannel = {};
+            let tempMedia = {};
 
-            lines.forEach(line => {
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
                 if (line.startsWith('#EXTINF')) {
-                    const nameMatch = line.split(',')[1];
+                    // Extração do Nome
+                    const nameParts = line.split(',');
+                    tempMedia.name = nameParts.length > 1 ? nameParts[1].trim() : "Conteúdo Desconhecido";
+                    
+                    // Extração do Logo
                     const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                    currentChannel.name = nameMatch ? nameMatch.trim() : "Canal Desconhecido";
-                    currentChannel.logo = logoMatch ? logoMatch[1] : "";
+                    tempMedia.logo = logoMatch ? logoMatch[1] : "https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix";
+                    
+                    // Gerar um ID único baseado no nome
+                    tempMedia.id = btoa(unescape(encodeURIComponent(tempMedia.name))).substring(0, 15);
                 } else if (line.startsWith('http')) {
-                    currentChannel.url = line.trim();
-                    createChannelElement(currentChannel);
-                    currentChannel = {};
+                    tempMedia.url = line;
+                    // Evita duplicatas pela URL
+                    if (tempMedia.name && !allMedia.some(m => m.url === tempMedia.url)) {
+                        allMedia.push({...tempMedia});
+                    }
+                    tempMedia = {};
                 }
+            }
+        }
+
+        // --- SISTEMA DE FAVORITOS (Usando localStorage) ---
+        function getFavorites() {
+            const favs = localStorage.getItem('redflix_favorites');
+            return favs ? JSON.parse(favs) : [];
+        }
+
+        function toggleFavorite(media) {
+            let favs = getFavorites();
+            const exists = favs.find(f => f.id === media.id);
+            
+            if (exists) {
+                favs = favs.filter(f => f.id !== media.id);
+                saveFavBtn.innerText = "⭐ Favoritar";
+                saveFavBtn.style.background = "#222";
+            } else {
+                favs.push(media);
+                saveFavBtn.innerText = "❌ Remover Favorito";
+                saveFavBtn.style.background = "var(--primary-color)";
+            }
+            localStorage.setItem('redflix_favorites', JSON.stringify(favs));
+            
+            // Atualiza a grid instantaneamente se estiver na aba de favoritos
+            if (showOnlyFavs) renderGrid(allMedia); 
+        }
+
+        function checkIsFavorite(mediaId) {
+            return getFavorites().some(f => f.id === mediaId);
+        }
+
+        // --- RENDERIZAÇÃO ---
+        function renderGrid(data) {
+            grid.innerHTML = '';
+            
+            let displayData = data;
+            if (showOnlyFavs) {
+                const favs = getFavorites();
+                // Mostra apenas os itens da lista principal que estão favoritados
+                displayData = data.filter(m => favs.some(f => f.id === m.id));
+                // Se o cache principal estiver vazio (ex: offline), puxa direto do localStorage
+                if (displayData.length === 0 && data.length === 0) {
+                    displayData = favs; 
+                }
+            }
+
+            if (displayData.length === 0) {
+                grid.innerHTML = '<p class="status-msg">Nenhum título encontrado.</p>';
+                return;
+            }
+
+            // Otimização: Renderizar apenas os 100 primeiros para não travar o DOM inicial
+            const limite = displayData.slice(0, 150);
+
+            limite.forEach(media => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${media.logo}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x320/121212/9d4edd?text=Redflix'">
+                    <div class="card-info" title="${media.name}">${media.name}</div>
+                `;
+                card.onclick = () => openPlayer(media);
+                grid.appendChild(card);
             });
         }
 
-        function createChannelElement(ch) {
-            const li = document.createElement('li');
-            li.className = 'channel-item';
-            li.innerHTML = `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/40/121212/8a2be2?text=TV'"> <span>${ch.name}</span>`;
-            
-            li.onclick = () => {
-                // Aplica o proxy na URL do vídeo para evitar bloqueios CORS
-                const proxiedUrl = PROXY + encodeURIComponent(ch.url);
-                player.src({ src: proxiedUrl, type: 'application/x-mpegURL' });
+        // --- CONTROLE DO PLAYER ---
+        function openPlayer(media) {
+            currentMedia = media;
+            nowPlaying.innerText = media.name;
+            playerModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            if (checkIsFavorite(media.id)) {
+                saveFavBtn.innerText = "❌ Remover Favorito";
+                saveFavBtn.style.background = "var(--primary-color)";
+            } else {
+                saveFavBtn.innerText = "⭐ Favoritar";
+                saveFavBtn.style.background = "#222";
+            }
+
+            if (hls) hls.destroy(); // Limpa buffer anterior
+
+            const url = media.url;
+
+            // Motor de reprodução inteligente
+            if (url.includes('.m3u8')) {
+                if (Hls.isSupported()) {
+                    hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(videoElement);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => player.play());
+                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    videoElement.src = url;
+                    videoElement.addEventListener('loadedmetadata', () => player.play());
+                }
+            } else {
+                // Para .mp4, .mkv e links diretos
+                videoElement.src = url;
                 player.play();
-                document.getElementById('current-channel').innerText = ch.name;
-            };
-            playlistElement.appendChild(li);
+            }
         }
 
-        initTV();
+        function closePlayer() {
+            playerModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            player.stop();
+            if (hls) hls.destroy();
+            videoElement.src = '';
+        }
+
+        // --- EVENTOS ---
+        closeModalBtn.addEventListener('click', closePlayer);
+        
+        saveFavBtn.addEventListener('click', () => {
+            if (currentMedia) toggleFavorite(currentMedia);
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allMedia.filter(m => m.name.toLowerCase().includes(term));
+            renderGrid(filtered);
+        });
+
+        toggleFavsBtn.addEventListener('click', () => {
+            showOnlyFavs = !showOnlyFavs;
+            toggleFavsBtn.classList.toggle('active');
+            renderGrid(allMedia);
+        });
+
+        // Click fora do player para fechar
+        playerModal.addEventListener('click', (e) => {
+            if (e.target === playerModal) closePlayer();
+        });
+
+        // Start
+        fetchRepositories();
+
     </script>
 </body>
 </html>
