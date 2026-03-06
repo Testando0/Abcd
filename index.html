@@ -3,119 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crisálida Play - Elite</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Redzin TV | Provedor de Canais</title>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
-        body { background-color: #141414; color: white; font-family: Arial, sans-serif; }
-        .movie-card:hover { transform: scale(1.05); transition: 0.3s; z-index: 10; }
-        #player-overlay { display: none; background: rgba(0,0,0,0.9); }
+        :root { --primary: #8a2be2; --bg: #0a0a0a; --sidebar: #121212; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: white; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar Estilizada */
+        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid #222; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 25px; background: linear-gradient(45deg, #4b0082, var(--primary)); text-align: center; }
+        .sidebar-header h2 { margin: 0; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .channel-list { flex: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; }
+        .channel-item { 
+            padding: 12px 15px; margin-bottom: 8px; border-radius: 8px; 
+            background: #1e1e1e; cursor: pointer; transition: all 0.3s ease;
+            display: flex; align-items: center; border: 1px solid transparent;
+        }
+        .channel-item:hover { background: #2a2a2a; border-color: var(--primary); transform: translateX(5px); }
+        .channel-item img { width: 35px; height: 35px; margin-right: 12px; object-fit: contain; border-radius: 4px; }
+        
+        /* Player Central */
+        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .video-wrapper { width: 100%; max-width: 1100px; aspect-ratio: 16/9; position: relative; }
+        .video-js { width: 100%; height: 100%; border-radius: 12px; box-shadow: 0 0 40px rgba(138, 43, 226, 0.3); }
+        
+        .status-bar { margin-top: 20px; color: #aaa; font-size: 0.9rem; }
+        #current-channel { color: var(--primary); font-weight: bold; }
+
+        /* Scrollbar Custom */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
     </style>
 </head>
 <body>
 
-    <nav class="p-5 bg-black flex justify-between items-center sticky top-0 z-50">
-        <h1 class="text-red-600 text-3xl font-black tracking-tighter">CRISÁLIDA</h1>
-        <div id="status" class="text-xs text-gray-500 italic">Conectando ao catálogo...</div>
-    </nav>
+    <aside class="sidebar">
+        <div class="sidebar-header"><h2>CRISÁLIDA TV</h2></div>
+        <ul class="channel-list" id="playlist">
+            <li style="padding: 20px; text-align: center;">Carregando canais...</li>
+        </ul>
+    </aside>
 
-    <header id="hero" class="h-[60vh] bg-cover bg-center flex items-end p-10 mb-10" style="background-image: linear-gradient(to top, #141414, transparent);">
-        <div>
-            <h2 id="hero-title" class="text-5xl font-bold">...</h2>
-            <p id="hero-desc" class="max-w-xl my-4 text-gray-300"></p>
-            <button id="hero-btn" class="bg-white text-black font-bold py-2 px-6 rounded hover:bg-gray-300">▶ Assistir Agora</button>
+    <main class="main-content">
+        <div class="video-wrapper">
+            <video id="main-player" class="video-js vjs-big-play-centered vjs-theme-city" controls preload="auto"></video>
         </div>
-    </header>
+        <div class="status-bar">
+            Sintonizado em: <span id="current-channel">Nenhum canal selecionado</span>
+        </div>
+    </main>
 
-    <div class="px-10">
-        <h3 class="text-xl font-bold mb-4">Populares na Irmandade</h3>
-        <div id="movie-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5">
-            </div>
-    </div>
-
-    <div id="player-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <button onclick="closePlayer()" class="absolute top-5 right-10 text-4xl">&times;</button>
-        <div id="video-wrapper" class="w-full max-w-5xl aspect-video bg-black rounded-lg overflow-hidden shadow-2xl"></div>
-    </div>
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 
     <script>
-        // SUA CHAVE INSERIDA AQUI
-        const API_KEY = '8265bd1679663a7ea12ac168da84d2e8'; 
-        const TMDB_BASE = 'https://api.themoviedb.org/3';
-        const IMG_URL = 'https://image.tmdb.org/t/p/original';
+        const PROXY = "https://proxycors.io/api/v1/proxy?url=";
+        const GIST_URL = "https://gist.githubusercontent.com/BrasilChannel/77d80bf7b68011726d2a34ca9c6ad219/raw/";
+        
+        const player = videojs('main-player');
+        const playlistElement = document.getElementById('playlist');
 
-        async function init() {
-            const statusEl = document.getElementById('status');
+        async function initTV() {
             try {
-                console.log("Tentando carregar filmes...");
-                const res = await fetch(`${TMDB_BASE}/movie/popular?api_key=${API_KEY}&language=pt-BR`);
-                
-                if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
-                
-                const data = await res.json();
-                console.log("Dados recebidos:", data);
-
-                if (data.results && data.results.length > 0) {
-                    displayMovies(data.results);
-                    setHero(data.results[0]);
-                    statusEl.innerText = "Catálogo atualizado";
-                } else {
-                    statusEl.innerText = "Nenhum filme encontrado.";
-                }
-
+                const response = await fetch(PROXY + encodeURIComponent(GIST_URL));
+                const data = await response.text();
+                parseM3U(data);
             } catch (err) {
-                console.error("ERRO FATAL:", err);
-                statusEl.innerText = "Erro ao carregar. Verifique o Console (F12).";
-                alert("Erro ao conectar com TMDB. Verifique sua conexão ou se a chave está ativa.");
+                playlistElement.innerHTML = `<li style="color:red; padding:20px;">Erro ao carregar lista via Proxy.</li>`;
             }
         }
 
-        function setHero(movie) {
-            document.getElementById('hero').style.backgroundImage = `linear-gradient(to top, #141414, transparent), url('${IMG_URL + movie.backdrop_path}')`;
-            document.getElementById('hero-title').innerText = movie.title;
-            document.getElementById('hero-desc').innerText = movie.overview;
-            document.getElementById('hero-btn').onclick = () => loadPlayer(movie.id);
+        function parseM3U(content) {
+            playlistElement.innerHTML = "";
+            const lines = content.split('\n');
+            let currentChannel = {};
+
+            lines.forEach(line => {
+                if (line.startsWith('#EXTINF')) {
+                    const nameMatch = line.split(',')[1];
+                    const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+                    currentChannel.name = nameMatch ? nameMatch.trim() : "Canal Desconhecido";
+                    currentChannel.logo = logoMatch ? logoMatch[1] : "";
+                } else if (line.startsWith('http')) {
+                    currentChannel.url = line.trim();
+                    createChannelElement(currentChannel);
+                    currentChannel = {};
+                }
+            });
         }
 
-        function displayMovies(movies) {
-            const grid = document.getElementById('movie-grid');
-            grid.innerHTML = movies.map(m => `
-                <div class="movie-card cursor-pointer" onclick="loadPlayer(${m.id})">
-                    <img src="${IMG_URL + m.poster_path}" class="rounded shadow-md hover:shadow-red-900/50">
-                    <p class="mt-2 text-xs font-semibold truncate">${m.title}</p>
-                </div>
-            `).join('');
-        }
-
-        async function loadPlayer(tmdbId) {
-            const statusEl = document.getElementById('status');
-            statusEl.innerText = "Buscando servidor de vídeo...";
+        function createChannelElement(ch) {
+            const li = document.createElement('li');
+            li.className = 'channel-item';
+            li.innerHTML = `<img src="${ch.logo}" onerror="this.src='https://via.placeholder.com/40/121212/8a2be2?text=TV'"> <span>${ch.name}</span>`;
             
-            // Puxa o IMDB ID para garantir compatibilidade máxima
-            const res = await fetch(`${TMDB_BASE}/movie/${tmdbId}?api_key=${API_KEY}`);
-            const movie = await res.json();
-            
-            const playerWrapper = document.getElementById('video-wrapper');
-            // Usando Vidsrc.to com sandbox para bloquear anúncios
-            playerWrapper.innerHTML = `
-                <iframe 
-                    src="https://vidsrc.to/embed/movie/${movie.imdb_id}" 
-                    style="width:100%; height:100%;" 
-                    frameborder="0" 
-                    allowfullscreen
-                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts">
-                </iframe>
-            `;
-            document.getElementById('player-overlay').style.display = 'flex';
-            statusEl.innerText = "Reproduzindo: " + movie.title;
+            li.onclick = () => {
+                // Aplica o proxy na URL do vídeo para evitar bloqueios CORS
+                const proxiedUrl = PROXY + encodeURIComponent(ch.url);
+                player.src({ src: proxiedUrl, type: 'application/x-mpegURL' });
+                player.play();
+                document.getElementById('current-channel').innerText = ch.name;
+            };
+            playlistElement.appendChild(li);
         }
 
-        function closePlayer() {
-            document.getElementById('player-overlay').style.display = 'none';
-            document.getElementById('video-wrapper').innerHTML = '';
-        }
-
-        // Iniciar
-        init();
+        initTV();
     </script>
 </body>
 </html>
