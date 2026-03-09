@@ -505,11 +505,11 @@ img { display: block; }
 
     <!-- Source selector -->
     <div class="src-bar">
-      <button class="src-btn active" data-src="vidsrc"     onclick="switchSrc(this)">📺 VidSrc <span class="src-chip">HD</span></button>
-      <button class="src-btn"        data-src="superembed" onclick="switchSrc(this)">🌐 SuperEmbed <span class="src-chip">Multi</span></button>
+      <button class="src-btn active" data-src="pstream"    onclick="switchSrc(this)">🚀 P-Stream <span class="src-chip">SEM ADS</span></button>
+      <button class="src-btn"        data-src="autoembed"  onclick="switchSrc(this)">⚡ AutoEmbed <span class="src-chip">SEM ADS</span></button>
+      <button class="src-btn"        data-src="vidsrc"     onclick="switchSrc(this)">📺 VidSrc <span class="src-chip">HD</span></button>
+      <button class="src-btn"        data-src="vidsrcme"   onclick="switchSrc(this)">🌐 VidSrc.me <span class="src-chip">HD</span></button>
       <button class="src-btn"        data-src="embedsu"    onclick="switchSrc(this)">🎞 Embed.su <span class="src-chip">4K</span></button>
-      <button class="src-btn"        data-src="vidfast"    onclick="switchSrc(this)">⚡ VidFast <span class="src-chip">HD</span></button>
-      <button class="src-btn"        data-src="vidsrcme"   onclick="switchSrc(this)">🇧🇷 VidSrc.me <span class="src-chip">PT</span></button>
     </div>
 
     <!-- TV Season/Episode bar -->
@@ -580,16 +580,59 @@ let state = {
   // modal
   item:         null,
   mediaType:    'movie',
-  src:          'vidsrc',
+  src:          'pstream',
   season:       1,
   episode:      1,
   tvCache:      {}  // tvId -> {seasons, episodes{s:[]}}
 };
 
 // ═══════════════════════════════════════════════
-//  API HELPER
+//  OFFLINE DEMO DATA  (IDs reais do TMDB — players funcionam)
 // ═══════════════════════════════════════════════
+const DEMO_MOVIES = [
+  {id:299534,media_type:'movie',title:'Vingadores: Ultimato',release_date:'2019-04-24',vote_average:8.3,genre_ids:[28,12,878],poster_path:'/or06FN3Dka5tukK1e9sl16pB3iy.jpg',backdrop_path:'/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg',overview:'Após os eventos devastadores de Guerra Infinita, o universo está em ruínas. Os Vingadores se reúnem para reverter as ações de Thanos e restaurar a ordem do cosmos.'},
+  {id:299536,media_type:'movie',title:'Vingadores: Guerra Infinita',release_date:'2018-04-27',vote_average:8.3,genre_ids:[28,12,878],poster_path:'/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',backdrop_path:'/lmZFxXgJE3vgrciwuDib0N8CfQo.jpg',overview:'Os Vingadores enfrentam Thanos, um ser poderoso que busca coletar todas as Joias do Infinito para eliminar metade da vida no universo.'},
+  {id:550,media_type:'movie',title:'Clube da Luta',release_date:'1999-10-15',vote_average:8.4,genre_ids:[18,53],poster_path:'/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',backdrop_path:'/52AfXWuXCHn3UjD17rBruA9f5qb.jpg',overview:'Um insone solitário e um fabricante de sabão excêntrico formam um clube de luta clandestino que evolui para algo muito mais perturbador.'},
+  {id:157336,media_type:'movie',title:'Interestelar',release_date:'2014-11-07',vote_average:8.3,genre_ids:[28,12,878],poster_path:'/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',backdrop_path:'/xJHokMbljvjADYdit5fK5VQsXEG.jpg',overview:'Uma equipe de exploradores viaja por um buraco de minhoca em busca de um novo lar para a humanidade enquanto a Terra se torna inabitável.'},
+  {id:27205,media_type:'movie',title:'A Origem',release_date:'2010-07-16',vote_average:8.4,genre_ids:[28,878,53],poster_path:'/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg',backdrop_path:'/s3TBrRGB1iav7gFOCNx3H31MoES.jpg',overview:'Um ladrão especialista em roubar segredos dos sonhos recebe a missão impossível de plantar uma ideia na mente de um poderoso CEO.'},
+  {id:238,media_type:'movie',title:'O Poderoso Chefão',release_date:'1972-03-24',vote_average:8.7,genre_ids:[18,80],poster_path:'/3bhkrj58Vtu7enYsLEd5nt5aRon.jpg',backdrop_path:'/tmU7GeKVybMWFButWEGl2M4GeiP.jpg',overview:'O patriarca idoso de uma dinastia do crime transfere o controle de seu império clandestino para o filho relutante.'},
+  {id:278,media_type:'movie',title:'Um Sonho de Liberdade',release_date:'1994-09-23',vote_average:8.7,genre_ids:[18],poster_path:'/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg',backdrop_path:'/iNh3BivHyg5sQRPP1KOkzguEX0H.jpg',overview:'Um banqueiro inocente condenado por assassinato constrói uma amizade especial dentro da prisão de Shawshank.'},
+  {id:680,media_type:'movie',title:'Pulp Fiction',release_date:'1994-09-10',vote_average:8.5,genre_ids:[80,53,18],poster_path:'/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg',backdrop_path:'/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg',overview:'Histórias entrelaçadas de gangsters, boxeadores e criminosos na Los Angeles underground, apresentadas de forma não-linear.'},
+  {id:475557,media_type:'movie',title:'Coringa',release_date:'2019-10-04',vote_average:8.2,genre_ids:[80,18,53],poster_path:'/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg',backdrop_path:'/f5F4cRhQdUbyVbB5lTNCwHEzuSx.jpg',overview:'Arthur Fleck, um comediante fracassado em Gotham City, descobre que pequenas loucuras são o único caminho para a sanidade.'},
+  {id:496243,media_type:'movie',title:'Parasita',release_date:'2019-10-05',vote_average:8.5,genre_ids:[35,18,53],poster_path:'/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg',backdrop_path:'/ApiBzeaa95TNYliSbQ8pJv4Fje7.jpg',overview:'A família Kim, todos desempregados, vê uma oportunidade quando o filho mais velho começa a dar aulas para a rica família Park.'},
+  {id:76341,media_type:'movie',title:'Mad Max: Estrada da Fúria',release_date:'2015-05-15',vote_average:7.9,genre_ids:[28,12],poster_path:'/hA2ple9q4qnwxp3hKVNhroipsir.jpg',backdrop_path:'/phszHPFPMFGRNpuT6pnFVR2hNvJ.jpg',overview:'Num mundo pós-apocalíptico, Max e Furiosa se aliam para escapar de um tirano que controla os últimos recursos de água e combustível.'},
+  {id:120,media_type:'movie',title:'O Senhor dos Anéis: A Sociedade do Anel',release_date:'2001-12-19',vote_average:8.4,genre_ids:[28,12,14],poster_path:'/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg',backdrop_path:'/mfwq2nMBzArzQ7Y9RKE8SKeeTkg.jpg',overview:'O jovem hobbit Frodo herda o Um Anel e deve levá-lo até a Montanha da Perdição, formando uma sociedade de nove companheiros.'},
+  {id:569094,media_type:'movie',title:'Homem-Aranha: Sem Volta Para Casa',release_date:'2021-12-15',vote_average:8.2,genre_ids:[28,12,878],poster_path:'/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg',backdrop_path:'/14QbnygCuTO0vl7CAFmPf1fgZfV.jpg',overview:'Peter Parker pede ajuda ao Doutor Estranho para apagar sua identidade secreta, mas o feitiço traz vilões de outros universos.'},
+  {id:505642,media_type:'movie',title:'Pantera Negra: Wakanda Para Sempre',release_date:'2022-11-11',vote_average:7.3,genre_ids:[28,12,878],poster_path:'/sv1xJUazXeYqALzczSZ3O6nkH75.jpg',backdrop_path:'/xDMIl84Qo5Tsu62c9DGWhmPI67A.jpg',overview:'Wakanda enfrenta novas ameaças ao lamentar a morte do Rei T\'Challa, enquanto Ramonda e Shuri buscam proteger o reino.'},
+  {id:315162,media_type:'movie',title:'Puss in Boots: O Último Desejo',release_date:'2022-12-21',vote_average:8.1,genre_ids:[16,28,12,35],poster_path:'/kuf6dutpsT0vSVehic3EZIqkOBt.jpg',backdrop_path:'/jMXN4OR0OxMsFQcnpd2OlxUgZVL.jpg',overview:'O Gato de Botas descobre que sua paixão pelas aventuras cobrou um preço altíssimo — ele está na sua nona e última vida.'},
+  {id:603692,media_type:'movie',title:'John Wick 4',release_date:'2023-03-22',vote_average:7.8,genre_ids:[28,53,80],poster_path:'/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg',backdrop_path:'/1inZm0xxXrpRfN0LxwE2zvIvYis.jpg',overview:'John Wick descobre um caminho para derrotar a Alta Mesa, mas antes deve enfrentar um novo inimigo com alianças poderosas.'},
+];
+
+const DEMO_SERIES = [
+  {id:1396,media_type:'tv',name:'Breaking Bad',first_air_date:'2008-01-20',vote_average:8.9,genre_ids:[18,80],poster_path:'/ggFHVNu6YYI5L9pCfOacjizRGt.jpg',backdrop_path:'/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg',overview:'Walter White, um professor de química com câncer terminal, se torna fabricante de metanfetamina para garantir o futuro financeiro da família.'},
+  {id:60574,media_type:'tv',name:'Peaky Blinders',first_air_date:'2013-09-12',vote_average:8.8,genre_ids:[80,18,36],poster_path:'/vUUqzWa2LnHIVqkaKVn3nyfVnBL.jpg',backdrop_path:'/wiE9doxiLwq3WggrsdMF649UFcI.jpg',overview:'A família Shelby controla os submundos de Birmingham após a Primeira Guerra Mundial com sua gangue dos Peaky Blinders.'},
+  {id:1399,media_type:'tv',name:'Game of Thrones',first_air_date:'2011-04-17',vote_average:8.4,genre_ids:[10765,18,28],poster_path:'/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg',backdrop_path:'/2OMB0ynKlyIenMJWI2Dy9IWT4c.jpg',overview:'Famílias nobres travam uma guerra pelo controle do Trono de Ferro dos Sete Reinos de Westeros.'},
+  {id:66732,media_type:'tv',name:'Stranger Things',first_air_date:'2016-07-15',vote_average:8.6,genre_ids:[18,9648,10765],poster_path:'/49WJfeN0moxb9IPfGn8AIqMGskD.jpg',backdrop_path:'/56v2KjBlU4XaOv9rVYEQypROD7P.jpg',overview:'Quando um menino desaparece numa cidade pequena, seus amigos descobrem um mistério envolvendo experimentos secretos e forças sobrenaturais.'},
+  {id:63174,media_type:'tv',name:'Lucifer',first_air_date:'2016-01-25',vote_average:8.1,genre_ids:[80,18,10765],poster_path:'/4EYPN5mVIhKLfxGruy7Dy41dTVn.jpg',backdrop_path:'/ta5oblpMlEcIPIS2YGcq9XEkWK2.jpg',overview:'Lucifer Morningstar larga o inferno e se muda para Los Angeles, onde vira consultor do LAPD enquanto questiona sua existência.'},
+  {id:1402,media_type:'tv',name:'The Walking Dead',first_air_date:'2010-10-31',vote_average:8.1,genre_ids:[10759,18,27],poster_path:'/xf9wuDcqlUPWABZNeDKPbZUjWx0.jpg',backdrop_path:'/uro2Khv7JxlzXtLb8tCIbRhkb9E.jpg',overview:'Rick Grimes lidera um grupo de sobreviventes em um mundo devastado por zumbis, lutando contra mortos e vivos igualmente.'},
+  {id:71446,media_type:'tv',name:'La Casa de Papel',first_air_date:'2017-05-02',vote_average:8.2,genre_ids:[80,18,53],poster_path:'/reEMJA1uzscCbkpeRJeTT2bjqUp.jpg',backdrop_path:'/piPzLpqAknNnGNQOsT1kP5artPR.jpg',overview:'Um misterioso ladrão chamado O Professor recruta oito ladrões para executar o maior roubo da história da Espanha.'},
+  {id:94997,media_type:'tv',name:'House of the Dragon',first_air_date:'2022-08-21',vote_average:8.4,genre_ids:[10765,18,28],poster_path:'/z2yahl2uefxDCl0nogcRBstwruJ.jpg',backdrop_path:'/etj8E2o0Bud0HkONVQPjyCkIvpv.jpg',overview:'A história da Casa Targaryen, 200 anos antes dos eventos de Game of Thrones, incluindo a Guerra Civil conhecida como Dança dos Dragões.'},
+];
+
+const DEMO_ALL = [
+  ...DEMO_MOVIES.slice(0, 8),
+  ...DEMO_SERIES.slice(0, 4),
+  ...DEMO_MOVIES.slice(8),
+  ...DEMO_SERIES.slice(4),
+];
+
+// ═══════════════════════════════════════════════
+//  API HELPER  (com fallback automático offline)
+// ═══════════════════════════════════════════════
+let IS_ONLINE = true; // detectado no boot
+
 async function tmdb(path, params = {}) {
+  if (!IS_ONLINE) return null;
   try {
     const url = new URL(TMDB_URL + path);
     url.searchParams.set('api_key', TMDB_KEY);
@@ -598,7 +641,37 @@ async function tmdb(path, params = {}) {
     const res = await fetch(url.toString());
     if (!res.ok) { console.warn('TMDB', res.status, path); return null; }
     return res.json();
-  } catch(e) { console.error('TMDB error:', e); return null; }
+  } catch(e) {
+    IS_ONLINE = false;
+    return null;
+  }
+}
+
+// Busca local nos dados demo
+function demoSearch(query) {
+  const q = query.toLowerCase();
+  return DEMO_ALL.filter(item => {
+    const title = (item.title || item.name || '').toLowerCase();
+    const ov    = (item.overview || '').toLowerCase();
+    return title.includes(q) || ov.includes(q);
+  });
+}
+
+// Injeta banner de aviso offline
+function showOfflineBanner() {
+  if (document.getElementById('offline-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'offline-banner';
+  b.style.cssText = `
+    background: rgba(240,165,0,.1); border-bottom: 1px solid rgba(240,165,0,.25);
+    color: rgba(240,165,0,.9); font-size: 12.5px; text-align: center;
+    padding: 8px 24px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  `;
+  b.innerHTML = `
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>Modo demonstração — <strong>Baixe o arquivo e abra no seu navegador</strong> para carregar todos os filmes e séries da API TMDB em tempo real.</span>
+  `;
+  $('header').after(b);
 }
 
 // ═══════════════════════════════════════════════
@@ -756,47 +829,48 @@ async function loadSections() {
 }
 
 // ═══════════════════════════════════════════════
-//  PLAYER URL BUILDER  (all confirmed working 2025)
+//  PLAYER URL BUILDER
+//  Prioridade: players sem anúncios primeiro
 // ═══════════════════════════════════════════════
 function buildPlayerUrl(src, item, mtype, s, e) {
   const id = item.id;
   const tv = mtype === 'tv';
 
   switch (src) {
-    // vidsrc.cc — best HD, no PT-BR ads
+    // P-Stream — "no ads ever" (código aberto, sem monetização)
+    case 'pstream':
+      return tv
+        ? `https://iframe.pstream.mov/embed/tmdb-tv-${id}/${s}/${e}`
+        : `https://iframe.pstream.mov/embed/tmdb-movie-${id}`;
+
+    // AutoEmbed v2 — "no registration, no ads"
+    case 'autoembed':
+      return tv
+        ? `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`
+        : `https://player.autoembed.cc/embed/movie/${id}`;
+
+    // VidSrc.cc — alternativa HD
     case 'vidsrc':
       return tv
         ? `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}`
         : `https://vidsrc.cc/v2/embed/movie/${id}`;
 
-    // SuperEmbed / multiembed.mov — multi-server, 1 popup
-    case 'superembed':
-      return tv
-        ? `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`
-        : `https://multiembed.mov/?video_id=${id}&tmdb=1`;
-
-    // embed.su — good quality, less ads
-    case 'embedsu':
-      return tv
-        ? `https://embed.su/embed/tv/${id}/${s}/${e}`
-        : `https://embed.su/embed/movie/${id}`;
-
-    // vidfast.pro — fast CDN
-    case 'vidfast':
-      return tv
-        ? `https://vidfast.pro/tv/${id}/${s}/${e}`
-        : `https://vidfast.pro/movie/${id}`;
-
-    // vidsrc.me — original, PT-BR subs available
+    // VidSrc.me — suporte a legendas PT-BR
     case 'vidsrcme':
       return tv
         ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`
         : `https://vidsrc.me/embed/movie?tmdb=${id}`;
 
+    // Embed.su — qualidade 4K
+    case 'embedsu':
+      return tv
+        ? `https://embed.su/embed/tv/${id}/${s}/${e}`
+        : `https://embed.su/embed/movie/${id}`;
+
     default:
       return tv
-        ? `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}`
-        : `https://vidsrc.cc/v2/embed/movie/${id}`;
+        ? `https://iframe.pstream.mov/embed/tmdb-tv-${id}/${s}/${e}`
+        : `https://iframe.pstream.mov/embed/tmdb-movie-${id}`;
   }
 }
 
@@ -806,13 +880,13 @@ function buildPlayerUrl(src, item, mtype, s, e) {
 async function openModal(item, mtype) {
   state.item      = item;
   state.mediaType = mtype || 'movie';
-  state.src       = 'vidsrc';
+  state.src       = 'pstream';
   state.season    = 1;
   state.episode   = 1;
 
   // Reset source tabs
   document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.src-btn[data-src="vidsrc"]').classList.add('active');
+  document.querySelector('.src-btn[data-src="pstream"]').classList.add('active');
 
   // Show modal
   $('modal').classList.add('open');
@@ -979,6 +1053,22 @@ function onSearch(q) {
 
 async function runSearch(q) {
   showSkeletons('search-grid', 12);
+
+  if (!IS_ONLINE) {
+    // Busca local nos dados demo
+    const results = demoSearch(q);
+    if (!results.length) {
+      $('search-grid').innerHTML = `<div class="empty">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Nenhum resultado para "${q}"</div>
+        <div class="empty-sub">Tente: Vingadores, Breaking Bad, Coringa...</div>
+      </div>`;
+    } else {
+      fillGrid('search-grid', results);
+    }
+    return;
+  }
+
   const data = await tmdb('/search/multi', { query: q, include_adult: 'false' });
   const items = (data?.results || [])
     .filter(r => r.media_type !== 'person' && (r.poster_path || r.backdrop_path));
@@ -1011,16 +1101,51 @@ document.addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════════════
-//  BOOT
+//  BOOT — detecta online/offline antes de tudo
 // ═══════════════════════════════════════════════
 (async function boot() {
-  // Show skeletons immediately so user sees something
   showSkeletons('grid-1');
   showSkeletons('grid-2');
   showSkeletons('grid-3');
 
-  // Load in parallel
-  await Promise.all([loadHero(), loadSections()]);
+  // Teste rápido de conectividade (3s timeout)
+  let canFetch = false;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    const probe = await fetch(
+      `${TMDB_URL}/configuration?api_key=${TMDB_KEY}`,
+      { signal: ctrl.signal }
+    );
+    clearTimeout(timer);
+    canFetch = probe.ok;
+  } catch(e) {
+    canFetch = false;
+  }
+
+  IS_ONLINE = canFetch;
+
+  if (IS_ONLINE) {
+    // ── Modo online: API real ──────────────────
+    await Promise.all([loadHero(), loadSections()]);
+  } else {
+    // ── Modo offline: dados demo ──────────────
+    showOfflineBanner();
+
+    // Hero com os melhores filmes demo
+    state.heroList = DEMO_MOVIES.slice(0, 6);
+    $('hero-dots').innerHTML = state.heroList
+      .map((_, i) => `<span class="hdot${i===0?' active':''}" onclick="setHero(${i})"></span>`)
+      .join('');
+    setHero(0);
+    clearInterval(state.heroTimer);
+    state.heroTimer = setInterval(() => setHero((state.heroIdx + 1) % state.heroList.length), 7000);
+
+    // Seções demo
+    fillGrid('grid-1', DEMO_MOVIES.slice(0, 12));
+    fillGrid('grid-2', DEMO_SERIES.slice(0, 8));
+    fillGrid('grid-3', [...DEMO_MOVIES].sort((a,b) => b.vote_average - a.vote_average).slice(0, 12));
+  }
 })();
 </script>
 </body>
