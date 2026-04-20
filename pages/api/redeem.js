@@ -1,4 +1,4 @@
-import codes from './data/codes.json';
+import codes from '../../data/codes.json';
 
 export default function handler(req, res) {
   if (req.method !== 'POST') {
