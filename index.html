@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invocação do Mal 2 - Assista Agora</title>
+    <title>Teste - Streaming</title>
     <style>
-        /* Estilos base (Estilo Netflix) */
+        :root {
+            --netflix-red: #E50914;
+            --bg-black: #141414;
+            --text-white: #FFFFFF;
+            --gray: #808080;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,213 +19,216 @@
         }
 
         body {
-            background-color: #141414;
-            color: #fff;
+            background-color: var(--bg-black);
+            color: var(--text-white);
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             overflow-x: hidden;
         }
 
-        /* Navbar simples */
+        /* Header */
         header {
-            position: absolute;
-            top: 0;
-            left: 0;
+            padding: 15px 4%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+            position: fixed;
             width: 100%;
-            padding: 20px 50px;
-            z-index: 10;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+            z-index: 100;
+            display: flex;
+            align-items: center;
         }
 
         header h1 {
-            color: #E50914; /* Vermelho Netflix */
-            font-size: 2rem;
+            color: var(--netflix-red);
+            font-size: 1.8rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
+            font-weight: bold;
         }
 
-        /* Hero Section (Capa do Filme) */
-        .hero {
+        /* Player Container (Hero Area) */
+        .main-container {
+            padding-top: 70px;
+            width: 100%;
+        }
+
+        .video-wrapper {
             position: relative;
-            height: 100vh;
-            background-size: cover;
-            background-position: center;
-            display: flex;
-            align-items: center;
-            padding: 0 50px;
+            width: 100%;
+            padding-top: 56.25%; /* Proporção 16:9 */
+            background: #000;
         }
 
-        /* Gradiente escuro para dar contraste ao texto */
-        .hero::before {
-            content: '';
+        .video-wrapper iframe {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(to right, #141414 10%, transparent 70%),
-                        linear-gradient(to top, #141414 5%, transparent 40%);
-            z-index: 1;
+            border: none;
         }
 
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            max-width: 600px;
+        /* Movie Info */
+        .info-section {
+            padding: 20px 4%;
+            background: linear-gradient(to bottom, #000, var(--bg-black));
         }
 
         .movie-title {
-            font-size: 4rem;
+            font-size: 2rem;
+            margin-bottom: 10px;
             font-weight: bold;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        .movie-overview {
-            font-size: 1.2rem;
-            line-height: 1.5;
-            margin-bottom: 30px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        .metadata {
+            display: flex;
+            gap: 15px;
+            color: #46d369; /* Cor de "relevância" da Netflix */
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
         }
 
-        .play-btn {
-            background-color: #fff;
-            color: #000;
-            border: none;
-            padding: 15px 35px;
+        .metadata span.year { color: var(--gray); }
+        .metadata span.rating { border: 1px solid var(--gray); padding: 0 5px; color: var(--text-white); }
+
+        .synopsis {
+            font-size: 1rem;
+            line-height: 1.4;
+            max-width: 800px;
+            color: #d2d2d2;
+        }
+
+        /* Filas de Imagens (Rows) */
+        .row {
+            padding: 20px 0 20px 4%;
+        }
+
+        .row-title {
             font-size: 1.2rem;
             font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .posters-container {
+            display: flex;
+            overflow-x: scroll;
+            gap: 10px;
+            padding-bottom: 10px;
+            scrollbar-width: none; /* Firefox */
+        }
+
+        .posters-container::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        .poster-item {
+            min-width: 160px;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .poster-item:hover {
+            transform: scale(1.05);
+        }
+
+        .poster-item img {
+            width: 100%;
             border-radius: 4px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            transition: background-color 0.2s ease;
+            display: block;
         }
 
-        .play-btn:hover {
-            background-color: #e6e6e6;
-        }
-
-        .play-btn svg {
-            margin-right: 10px;
-            width: 24px;
-            height: 24px;
-        }
-
-        /* Modal do Player */
-        .player-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 30px;
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 3rem;
-            cursor: pointer;
-            z-index: 10000;
-        }
-
-        .close-btn:hover {
-            color: #E50914;
-        }
-
-        .video-container {
-            width: 90%;
-            height: 90%;
-            max-width: 1200px;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            border-radius: 8px;
+        /* Responsividade Celular */
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.4rem; }
+            .movie-title { font-size: 1.5rem; }
+            .synopsis { font-size: 0.9rem; }
+            .poster-item { min-width: 110px; }
+            .row-title { font-size: 1rem; }
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>CineFlix</h1>
+        <h1>Teste</h1>
     </header>
 
-    <main class="hero" id="hero-section">
-        <div class="hero-content">
-            <h2 class="movie-title" id="title">Carregando...</h2>
-            <p class="movie-overview" id="overview">Aguarde, buscando informações no TMDB...</p>
-            <button class="play-btn" onclick="openPlayer()">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
-                </svg>
-                Assistir
-            </button>
-        </div>
-    </main>
-
-    <div class="player-modal" id="playerModal">
-        <button class="close-btn" onclick="closePlayer()">&times;</button>
-        <div class="video-container">
+    <main class="main-container">
+        <div class="video-wrapper">
             <iframe src="https://drive.google.com/file/d/1lomcBH_PNG6AU-OQ0GjI4If9E_VCU3Ud/preview" allowfullscreen></iframe>
         </div>
-    </div>
+
+        <section class="info-section">
+            <div class="metadata">
+                <span>98% relevante</span>
+                <span class="year">2016</span>
+                <span class="rating">14</span>
+                <span>2h 14min</span>
+            </div>
+            <h2 class="movie-title" id="main-title">Invocação do Mal 2</h2>
+            <p class="synopsis" id="main-synopsis">Carregando sinopse...</p>
+        </section>
+
+        <section class="row">
+            <h3 class="row-title">Mais títulos como este</h3>
+            <div class="posters-container" id="recommendations-row">
+                </div>
+        </section>
+
+        <section class="row">
+            <h3 class="row-title">Em alta</h3>
+            <div class="posters-container" id="trending-row">
+                </div>
+        </section>
+    </main>
 
     <script>
-        // CONFIGURAÇÕES DA API TMDB
-        const TMDB_API_KEY = 'SUA_CHAVE_API_AQUI'; // <--- COLOQUE SUA CHAVE AQUI
-        const MOVIE_ID = '259693'; // ID do filme Invocação do Mal 2 no TMDB
+        const TMDB_API_KEY = 'SUA_CHAVE_API_AQUI'; // Substitua pela sua chave
+        const MAIN_MOVIE_ID = '259693'; // Invocação do Mal 2
 
-        // Função para buscar dados do filme
-        async function fetchMovieData() {
+        async function loadContent() {
             try {
-                // Requisição à API do TMDB (em pt-BR para puxar sinopse e título traduzidos)
-                const url = `https://api.themoviedb.org/3/movie/${MOVIE_ID}?api_key=${TMDB_API_KEY}&language=pt-BR`;
-                const response = await fetch(url);
+                // 1. Carregar Detalhes do Filme Principal
+                const movieUrl = `https://api.themoviedb.org/3/movie/${MAIN_MOVIE_ID}?api_key=${TMDB_API_KEY}&language=pt-BR`;
+                const movieRes = await fetch(movieUrl);
+                const movieData = await movieRes.json();
                 
-                if (!response.ok) {
-                    throw new Error("Erro ao buscar dados do TMDB. Verifique sua chave de API.");
-                }
+                document.getElementById('main-title').textContent = movieData.title;
+                document.getElementById('main-synopsis').textContent = movieData.overview;
 
-                const data = await response.json();
+                // 2. Carregar Recomendações (Imagens)
+                const recUrl = `https://api.themoviedb.org/3/movie/${MAIN_MOVIE_ID}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR`;
+                const recRes = await fetch(recUrl);
+                const recData = await recRes.json();
+                fillRow('recommendations-row', recData.results);
 
-                // Atualizar DOM com os dados
-                document.getElementById('title').textContent = data.title;
-                document.getElementById('overview').textContent = data.overview;
-                
-                // Construir URL da imagem de fundo (backdrop)
-                const backdropUrl = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
-                document.getElementById('hero-section').style.backgroundImage = `url('${backdropUrl}')`;
+                // 3. Carregar Filmes em Alta (Imagens)
+                const trendUrl = `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}&language=pt-BR`;
+                const trendRes = await fetch(trendUrl);
+                const trendData = await trendRes.json();
+                fillRow('trending-row', trendData.results);
 
             } catch (error) {
-                console.error(error);
-                // Fallback caso a API falhe ou não tenha a chave configurada
-                document.getElementById('title').textContent = "Invocação do Mal 2";
-                document.getElementById('overview').textContent = "Ed e Lorraine Warren viajam para o norte de Londres para ajudar uma mãe solteira criando quatro filhos sozinha em uma casa assombrada por espíritos malignos.";
+                console.error("Erro ao carregar dados do TMDB:", error);
             }
         }
 
-        // Funções para controlar o Player
-        function openPlayer() {
-            document.getElementById('playerModal').style.display = 'flex';
+        function fillRow(elementId, movies) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = ''; // Limpa o "Carregando"
+
+            movies.forEach(movie => {
+                if (movie.poster_path) {
+                    const div = document.createElement('div');
+                    div.className = 'poster-item';
+                    div.innerHTML = `
+                        <img src="https://image.tmdb.org/t/p/w342${movie.poster_path}" alt="${movie.title}">
+                    `;
+                    container.appendChild(div);
+                }
+            });
         }
 
-        function closePlayer() {
-            document.getElementById('playerModal').style.display = 'none';
-        }
-
-        // Carregar os dados ao iniciar a página
-        window.onload = fetchMovieData;
+        window.onload = loadContent;
     </script>
 </body>
 </html>
