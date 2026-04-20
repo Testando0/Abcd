@@ -1,147 +1,271 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { getCurrentProfile, clearSession, getSession, getCurrentUser, isPlanActive, planExpiry } from '../lib/auth';
 
-function formatExpiry(date) {
-  if (!date) return null;
-  const diff = date - new Date();
-  if (diff <= 0) return null;
-  const hours = Math.floor(diff / 3600000);
-  if (hours < 48) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-export default function Navbar({ onSearchOpen }) {
+export default function Navbar({ userId, profiles, activeProfile, onLogout }) {
   const router = useRouter();
-  const [solid, setSolid] = useState(false);
-  const [profile, setProfile] = useState(null);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [planInfo, setPlanInfo] = useState(null);
-  const dropdownRef = useRef(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef(null);
 
+  // Fecha menu ao clicar fora
   useEffect(() => {
-    const p = getCurrentProfile();
-    setProfile(p);
-    const u = getCurrentUser();
-    if (u) {
-      const active = isPlanActive(u);
-      const expiry = planExpiry(u);
-      setPlanInfo({ active, expiryStr: formatExpiry(expiry) });
-    }
-
-    const onScroll = () => setSolid(window.scrollY > 60);
-    window.addEventListener('scroll', onScroll);
-
-    const onClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false);
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowProfileMenu(false);
       }
     };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      document.removeEventListener('mousedown', onClickOutside);
-    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const handleLogout = () => {
-    clearSession();
-    router.replace('/login');
+  const handleRenew = () => {
+    // Abre modal/prompt direto na navbar - SEM página separada
+    const code = prompt('🔑 Digite seu código de renovação:');
+    if (!code) return;
+    
+    // Lógica simples de renovação (ajuste conforme seu backend)
+    try {
+      const STORAGE_SUB = 'rhflix_subscription';
+      const data = JSON.parse(localStorage.getItem(STORAGE_SUB) || '{}');
+      const current = data[userId] || { expiresAt: null, totalHours: 0 };
+      
+      // Códigos de exemplo (em produção, valide no backend)
+      const CODES = {
+        'VIP30': 30, 'VIP90': 90, 'TESTE': 24
+      };
+      
+      const hours = CODES[code.toUpperCase()];
+      if (!hours) {
+        alert('❌ Código inválido');
+        return;
+      }
+      
+      const now = Date.now();
+      const baseTime = current.expiresAt > now ? current.expiresAt : now;
+      const newExpires = baseTime + (hours * 60 * 60 * 1000);
+      
+      data[userId] = {
+        ...current,
+        totalHours: current.totalHours + hours,
+        expiresAt: newExpires
+      };      localStorage.setItem(STORAGE_SUB, JSON.stringify(data));
+      
+      alert(`✅ +${hours}h adicionadas!`);
+      window.location.reload(); // Atualiza badge de assinatura
+    } catch (err) {
+      alert('Erro ao aplicar código');
+      console.error(err);
+    }
   };
 
-  const initials = profile?.name?.charAt(0)?.toUpperCase() || '?';
-  const icon = profile?.icon;
-
   return (
-    <nav className={`navbar${solid ? ' solid' : ''}`}>
-      <span className="nav-logo" onClick={() => router.push('/')}>RHFLIX</span>
+    <nav className="navbar">
+      <div className="nav-logo" onClick={() => router.push('/')}>
+        RHFLIX
+      </div>
 
-      <div className="nav-right">
-        {/* Plan badge — only shown when expiring soon */}
-        {planInfo?.active && planInfo.expiryStr && (
-          <span
-            className="nav-plan-badge"
-            onClick={() => router.push('/profiles')}
-            title="Renovar assinatura"
-          >
-            {planInfo.expiryStr}
+      <div className="nav-right" ref={menuRef}>
+        {/* Badge de assinatura */}
+        {userId && (
+          <span className="nav-plan-badge" onClick={handleRenew} title="Clique para renovar">
+            ⭐ Plano Ativo
           </span>
         )}
 
-        {/* Search */}
-        <button className="nav-icon-btn" onClick={onSearchOpen} aria-label="Buscar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
+        {/* Botão de perfil */}
+        <button 
+          className="nav-avatar"
+          style={{ background: activeProfile?.color || '#333' }}
+          onClick={() => setShowProfileMenu(!showProfileMenu)}
+        >
+          {activeProfile?.icon || '👤'}
         </button>
 
-        {/* Profile avatar + dropdown */}
-        <div style={{ position: 'relative' }} ref={dropdownRef}>
-          <div
-            className="nav-avatar"
-            style={{ background: profile?.color || '#E50914' }}
-            onClick={() => setShowDropdown(d => !d)}
-            title={profile?.name}
-          >
-            {icon
-              ? <span style={{ fontSize: '1rem' }}>{icon}</span>
-              : initials
-            }
+        {/* Dropdown de perfil */}
+        {showProfileMenu && (
+          <div className="profile-dropdown">
+            {profiles?.map(profile => (
+              <div 
+                key={profile.id}
+                className="profile-item"
+                onClick={() => {
+                  // Troca perfil e volta pra home
+                  localStorage.setItem('rhflix_active_profile', JSON.stringify({ 
+                    userId, 
+                    profileId: profile.id 
+                  }));
+                  setShowProfileMenu(false);
+                  router.push('/');
+                }}
+              >                <span className="profile-avatar-sm" style={{ background: profile.color }}>
+                  {profile.icon}
+                </span>
+                <span>{profile.name}</span>
+                {activeProfile?.id === profile.id && <span className="profile-current">✓</span>}
+              </div>
+            ))}
+            
+            <div className="dropdown-divider" />
+            
+            {/* ATALHO RENOVAR - direto aqui, sem página separada */}
+            <button className="dropdown-action renew-action" onClick={handleRenew}>
+              🔑 Renovar assinatura
+            </button>
+            
+            <button className="dropdown-action" onClick={() => {
+              setShowProfileMenu(false);
+              router.push('/profiles');
+            }}>
+              ⚙️ Gerenciar perfis
+            </button>
+            
+            <button className="dropdown-action danger" onClick={() => {
+              localStorage.removeItem('rhflix_active_profile');
+              onLogout?.();
+              router.push('/login');
+            }}>
+              🚪 Sair da conta
+            </button>
           </div>
-
-          {showDropdown && (
-            <div className="profile-dropdown">
-              {/* Current profile */}
-              <div className="profile-dropdown-item">
-                <div className="mini-avatar" style={{ background: profile?.color || '#E50914' }}>
-                  {icon
-                    ? <span style={{ fontSize: '.85rem' }}>{icon}</span>
-                    : initials
-                  }
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '.88rem' }}>{profile?.name || 'Perfil'}</div>
-                  <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: 2 }}>Perfil atual</div>
-                </div>
-              </div>
-
-              <div className="profile-dropdown-divider" />
-
-              <div
-                className="profile-dropdown-action"
-                onClick={() => { setShowDropdown(false); router.push('/profiles'); }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                </svg>
-                Trocar Perfil
-              </div>
-
-              <div
-                className="profile-dropdown-action"
-                onClick={() => { setShowDropdown(false); router.push('/profiles?manage=1'); }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-                </svg>
-                Gerenciar Perfis
-              </div>
-
-              <div className="profile-dropdown-divider" />
-
-              <div className="profile-dropdown-action danger" onClick={handleLogout}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-                </svg>
-                Sair da conta
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
+
+      <style jsx>{`
+        .navbar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 64px;
+          padding: 0 24px;
+          display: flex;
+          align-items: center;
+          background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+          z-index: 1000;
+          transition: background 0.3s;
+        }
+        .navbar.scrolled {
+          background: rgba(0,0,0,0.95);
+        }        .nav-logo {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 1.8rem;
+          color: #e50914;
+          cursor: pointer;
+          letter-spacing: 2px;
+        }
+        .nav-right {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          position: relative;
+        }
+        .nav-plan-badge {
+          font-size: 0.7rem;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 3px;
+          background: rgba(74,222,128,0.15);
+          color: #4ade80;
+          border: 1px solid rgba(74,222,128,0.3);
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .nav-plan-badge:hover {
+          background: rgba(74,222,128,0.25);
+        }
+        .nav-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+          border: 2px solid transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: border-color 0.2s;
+        }
+        .nav-avatar:hover {
+          border-color: rgba(255,255,255,0.6);
+        }
+        .profile-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          background: #1a1a1a;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px;          min-width: 200px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+          overflow: hidden;
+          animation: dropdownIn 0.15s ease;
+        }
+        @keyframes dropdownIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: none; }
+        }
+        .profile-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 16px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .profile-item:hover {
+          background: rgba(255,255,255,0.08);
+        }
+        .profile-avatar-sm {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.8rem;
+          flex-shrink: 0;
+        }
+        .profile-current {
+          margin-left: auto;
+          color: #4ade80;
+          font-weight: 600;
+        }
+        .dropdown-divider {
+          height: 1px;
+          background: rgba(255,255,255,0.1);
+          margin: 4px 0;
+        }
+        .dropdown-action {
+          width: 100%;
+          text-align: left;
+          padding: 12px 16px;
+          background: transparent;
+          border: none;
+          color: rgba(255,255,255,0.85);
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;        }
+        .dropdown-action:hover {
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+        }
+        .dropdown-action.renew-action {
+          color: #4ade80;
+          font-weight: 500;
+        }
+        .dropdown-action.danger {
+          color: #f87171;
+        }
+        .dropdown-action.danger:hover {
+          background: rgba(248,113,113,0.1);
+        }
+
+        @media (max-width: 768px) {
+          .navbar { padding: 0 16px; }
+          .nav-logo { font-size: 1.5rem; }
+          .nav-avatar { width: 28px; height: 28px; font-size: 0.9rem; }
+          .profile-dropdown { right: -12px; }
+        }
+      `}</style>
     </nav>
   );
-}
+      }
