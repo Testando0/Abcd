@@ -1,0 +1,8 @@
+[
+  { "code": "REDZIN",    "label": "24 horas",  "hours": 24,  "maxUses": 3  },
+  { "code": "RHFLIX2026","label": "7 dias",    "hours": 168, "maxUses": 10 },
+  { "code": "VIPPASS",   "label": "30 dias",   "hours": 720, "maxUses": 5  },
+  { "code": "STARTER",   "label": "3 dias",    "hours": 72,  "maxUses": 20 },
+  { "code": "PREMIUM",   "label": "15 dias",   "hours": 360, "maxUses": 5  },
+  { "code": "BETA",      "label": "48 horas",  "hours": 48,  "maxUses": 50 }
+]
