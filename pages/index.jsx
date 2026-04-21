@@ -5,7 +5,8 @@ import { getSession, getCurrentProfile, isPlanActive, getCurrentUser } from '../
 import Navbar from '../components/Navbar';
 import MovieCard from '../components/MovieCard';
 import SearchOverlay from '../components/SearchOverlay';
-import VideoPlayer from '../components/VideoPlayer';
+import dynamic from 'next/dynamic';
+const VideoPlayer = dynamic(() => import('../components/VideoPlayer'), { ssr: false });
 import { getAvailableContent, getContentByTmdbId } from '../lib/catalog';
 import { fetchMovie, posterUrl } from '../lib/tmdb';
 
