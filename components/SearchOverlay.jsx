@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { searchMovies, posterUrl } from '../lib/tmdb';
 import { getDriveId } from '../lib/catalog';
 
-export default function SearchOverlay({ open, onClose, onSelect }) {
+export default function SearchOverlay({ isOpen, onClose, onSelect }) {
   const inputRef = useRef(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -10,12 +10,12 @@ export default function SearchOverlay({ open, onClose, onSelect }) {
   const debounceRef = useRef(null);
 
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       setQuery('');
       setResults([]);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [open]);
+  }, [isOpen]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -27,7 +27,10 @@ export default function SearchOverlay({ open, onClose, onSelect }) {
     const q = e.target.value;
     setQuery(q);
     clearTimeout(debounceRef.current);
-    if (!q.trim()) { setResults([]); return; }
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       const data = await searchMovies(q);
@@ -36,72 +39,73 @@ export default function SearchOverlay({ open, onClose, onSelect }) {
     }, 350);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className={`search-overlay${open ? ' open' : ''}`}>
-      <div className="search-top">
-        <button className="search-close" onClick={onClose}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-        <div className="search-input-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
+    <div className="search-overlay" onClick={onClose}>
+      <div className="search-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="search-header">
           <input
             ref={inputRef}
-            className="search-input"
-            placeholder="Títulos, pessoas, gêneros"
+            type="text"
             value={query}
             onChange={handleChange}
-            autoComplete="off"
-            spellCheck={false}
+            placeholder="Buscar filmes e séries..."
+            className="search-input"
           />
+          <button onClick={onClose} className="close-btn">✕</button>
         </div>
-      </div>
 
-      <div className="search-results">
-        {!query && !results.length && (
-          <div className="search-hint">Digite para buscar filmes e séries</div>
-        )}
+        <div className="search-results">
+          {!query && !results.length && (
+            <p className="search-empty">Digite para buscar filmes e séries</p>
+          )}
 
-        {loading && <div className="spinner" />}
+          {loading && <div className="loading-spinner">Carregando...</div>}
 
-        {!loading && results.length > 0 && (
-          <>
-            <div className="search-category">Resultados para "{query}"</div>
-            <div className="search-grid">
-              {results.map(movie => {
-                const driveId = getDriveId(movie.id);
-                return (
-                  <div
-                    key={movie.id}
-                    className="movie-card"
-                    style={{ width: '100%' }}
-                    onClick={() => { onSelect(movie, driveId); onClose(); }}
-                  >
-                    <img src={posterUrl(movie.poster_path)} alt={movie.title} loading="lazy" />
-                    {driveId && <span className="card-badge card-badge-dub">DUB</span>}
-                    <div className="card-info">
-                      <div className="card-title">{movie.title}</div>
-                      <div className="card-year">{(movie.release_date || '').slice(0, 4)}</div>
-                    </div>
-                    <div className="card-play-hint">
-                      <div className="card-play-circle">
-                        <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+          {!loading && results.length > 0 && (
+            <>
+              <h3>Resultados para "{query}"</h3>
+              <div className="results-list">
+                {results.map((movie) => {
+                  const driveId = getDriveId(movie.id);
+                  return (
+                    <div
+                      key={movie.id}
+                      className="search-result-item"
+                      onClick={() => {
+                        onSelect(movie);
+                        onClose();
+                      }}
+                    >
+                      {movie.poster_path && (
+                        <img
+                          src={posterUrl(movie.poster_path, 'w92')}
+                          alt={movie.title}
+                          className="result-poster"
+                        />
+                      )}
+                      <div className="result-info">
+                        <div className="result-title">
+                          {movie.title}
+                          {driveId && <span className="badge-dub">DUB</span>}
+                        </div>
+                        <div className="result-year">
+                          {(movie.release_date || '').slice(0, 4)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-        {!loading && query && results.length === 0 && (
-          <div className="search-hint">Nenhum resultado para "{query}"</div>
-        )}
+          {!loading && query && results.length === 0 && (
+            <p className="search-empty">Nenhum resultado para "{query}"</p>
+          )}
+        </div>
       </div>
     </div>
   );
-}
+                          }
