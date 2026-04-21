@@ -1,14 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 import { getSession, getCurrentProfile, isPlanActive, getCurrentUser } from '../lib/auth';
 import Navbar from '../components/Navbar';
 import MovieCard from '../components/MovieCard';
 import SearchOverlay from '../components/SearchOverlay';
-import dynamic from 'next/dynamic';
-const VideoPlayer = dynamic(() => import('../components/VideoPlayer'), { ssr: false });
 import { getAvailableContent, getContentByTmdbId } from '../lib/catalog';
 import { fetchMovie, posterUrl } from '../lib/tmdb';
+
+// ← Dynamic import (ssr: false) → resolve o erro do Plyr
+const VideoPlayer = dynamic(() => import('../components/VideoPlayer'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
@@ -19,7 +21,6 @@ export default function Home() {
   const [content, setContent] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Carrega conteúdo disponível
   const loadContent = useCallback(async () => {
     try {
       const available = getAvailableContent();
@@ -48,7 +49,7 @@ export default function Home() {
       
       const profile = getCurrentProfile();
       if (!profile) { router.replace('/profiles'); return; }
-            const user = getCurrentUser();
+      const user = getCurrentUser();
       setPlanOk(isPlanActive(user));
       
       await loadContent();
@@ -91,16 +92,15 @@ export default function Home() {
 
       <Navbar onSearch={() => setSearchOpen(true)} />
 
-      {/* Banner de plano inativo */}
       {!planOk && (
         <div className="paywall-banner">
-          <span>⚠️ Seu acesso está inativo</span>
+          <span>Warning: Seu acesso está inativo</span>
           <button onClick={() => router.push('/profiles')}>
             Inserir código de recarga
-          </button>        </div>
+          </button>
+        </div>
       )}
 
-      {/* Grid de filmes */}
       <main className="content-grid">
         {loading ? (
           <div className="skeleton-grid">
@@ -133,4 +133,4 @@ export default function Home() {
       />
     </>
   );
-                       }
+            }
