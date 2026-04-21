@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
-import VideoPlayer from '../../components/VideoPlayer';
+import dynamic from 'next/dynamic';
+const VideoPlayer = dynamic(() => import('../../components/VideoPlayer'), { ssr: false });
 
 export default function MovieDetail({ movie, profiles, userId }) {
   const router = useRouter();
