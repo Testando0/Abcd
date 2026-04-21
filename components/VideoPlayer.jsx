@@ -1,12 +1,10 @@
-'use client';
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
 import { extractDriveFileId, getStreamUrl } from '../lib/catalog';
 
 export default function VideoPlayer({ driveLink, movie, onClose }) {
-  const wrapRef = useRef(null);
+  const containerRef = useRef(null);
   const playerRef = useRef(null);
   const timerRef = useRef(null);
   const [showUI, setShowUI] = useState(true);
@@ -20,9 +18,8 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
   }, []);
 
   useEffect(() => {
-    if (!wrapRef.current) return;
-    document.body.style.overflow = 'hidden';
     resetTimer();
+    document.body.style.overflow = 'hidden';
 
     const onKey = (e) => {
       if (e.key === 'Escape') {
@@ -37,13 +34,14 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
       window.removeEventListener('keydown', onKey);
       clearTimeout(timerRef.current);
       document.body.style.overflow = '';
-      playerRef.current?.destroy();
+      playerRef.current?.destroy?.();
     };
   }, [resetTimer, onClose]);
 
   const toggleFull = () => {
+    const el = containerRef.current;
     if (!document.fullscreenElement) {
-      wrapRef.current?.requestFullscreen?.().then(() => setIsFull(true)).catch(() => {});
+      el?.requestFullscreen?.().then(() => setIsFull(true)).catch(() => {});
     } else {
       document.exitFullscreen?.().then(() => setIsFull(false)).catch(() => {});
     }
@@ -56,9 +54,9 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  // Inicializa Plyr
+  // Inicializa Plyr apenas no cliente
   useEffect(() => {
-    if (!driveLink || !wrapRef.current) return;
+    if (!driveLink || !containerRef.current) return;
 
     const fileId = extractDriveFileId(driveLink);
     const streamUrl = getStreamUrl(fileId);
@@ -68,7 +66,7 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
       return;
     }
 
-    playerRef.current = new Plyr(wrapRef.current, {
+    playerRef.current = new Plyr(containerRef.current, {
       controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
       settings: ['captions', 'quality', 'speed'],
       quality: { default: 720, options: [2160, 1440, 1080, 720, 480, 360] },
@@ -88,20 +86,25 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
       setError('Erro ao carregar vídeo. Verifique se o arquivo está público no Drive.');
     });
 
-    return () => playerRef.current?.destroy();
+    return () => {
+      playerRef.current?.destroy?.();
+    };
   }, [driveLink, movie]);
 
   return (
     <div className="video-player-overlay">
-      <div className="video-player-container" ref={wrapRef}>
-        {/* Plyr será injetado aqui automaticamente */}
-      </div>
+      <div 
+        ref={containerRef}
+        className="player-wrap"
+        onMouseMove={resetTimer}
+        onTouchStart={resetTimer}
+      />
 
       {/* Header */}
-      <div className="player-header">
-        <button onClick={onClose} className="back-btn">← Voltar</button>
-        <h1>{movie?.title || 'Carregando...'}</h1>
-        <button onClick={toggleFull} className="full-btn">
+      <div className={`player-top ${showUI ? '' : 'hidden'}`}>
+        <button className="player-back" onClick={onClose}>← Voltar</button>
+        <h1 className="player-movie-title">{movie?.title || 'Carregando...'}</h1>
+        <button className="player-fullbtn" onClick={toggleFull}>
           {isFull ? '⤢' : '⤡'}
         </button>
       </div>
@@ -112,9 +115,6 @@ export default function VideoPlayer({ driveLink, movie, onClose }) {
           <button onClick={onClose}>Fechar</button>
         </div>
       )}
-
-      {/* Overlay de controles (opcional) */}
-      {!showUI && <div className="player-ui-hidden" />}
     </div>
   );
-                 }
+      }
