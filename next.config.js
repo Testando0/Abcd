@@ -1,22 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
+  reactStrictMode: true,
   images: {
-    domains: ['image.tmdb.org'],
+    domains: ['image.tmdb.org', 'lh3.googleusercontent.com'],
+    formats: ['image/avif', 'image/webp'],
   },
+  // Otimizações para mobile
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // PWA básico
   async headers() {
     return [
       {
-        source: '/sw.js',
+        source: '/:path*',
         headers: [
-          { key: 'Service-Worker-Allowed', value: '/' },
-          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
-        ],
-      },
-      {
-        source: '/manifest.json',
-        headers: [
-          { key: 'Content-Type', value: 'application/manifest+json' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
       },
     ];
