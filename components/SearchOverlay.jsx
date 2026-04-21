@@ -108,4 +108,4 @@ export default function SearchOverlay({ isOpen, onClose, onSelect }) {
       </div>
     </div>
   );
-                          }
+  }
