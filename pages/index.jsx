@@ -1,15 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getSession, getCurrentProfile, isPlanActive, getCurrentUser } from '../lib/auth';
 import Navbar from '../components/Navbar';
-import Hero from '../components/Hero';
-import MovieRow from '../components/MovieRow';
+import MovieCard from '../components/MovieCard';
 import SearchOverlay from '../components/SearchOverlay';
 import VideoPlayer from '../components/VideoPlayer';
-import MovieDetail from '../components/MovieDetail';
-import { CATEGORIES, getDriveId } from '../lib/catalog';
-import { fetchMovie } from '../lib/tmdb';
+import { getAvailableContent, getContentByTmdbId } from '../lib/catalog';
+import { fetchMovie, posterUrl } from '../lib/tmdb';
 
 export default function Home() {
   const router = useRouter();
@@ -17,49 +15,68 @@ export default function Home() {
   const [planOk, setPlanOk] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [player, setPlayer] = useState(null);
-  const [detailState, setDetailState] = useState({ open: false, movie: null, driveId: null });
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [content, setContent] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const s = getSession();
-    if (!s) { router.replace('/login'); return; }
-    const p = getCurrentProfile();
-    if (!p) { router.replace('/profiles'); return; }
-    const u = getCurrentUser();
-    setPlanOk(isPlanActive(u));
-    setReady(true);
+  // Carrega conteúdo disponível
+  const loadContent = useCallback(async () => {
+    try {
+      const available = getAvailableContent();
+      const enriched = await Promise.all(
+        available.slice(0, 50).map(async (item) => {
+          try {
+            const tmdb = await fetchMovie(item.tmdbId);
+            return { ...item, tmdbData: tmdb };
+          } catch {
+            return { ...item, tmdbData: null };
+          }
+        })
+      );
+      setContent(enriched.filter(c => c.tmdbData));
+    } catch (error) {
+      console.error('Erro ao carregar conteúdo:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handlePlay = (movie, driveId) => {
-    if (!driveId) {
-      setDetailState({ open: true, movie, driveId: null });
-      return;
-    }
-    setPlayer({ movie, driveId });
+  useEffect(() => {
+    const init = async () => {
+      const session = getSession();
+      if (!session) { router.replace('/login'); return; }
+      
+      const profile = getCurrentProfile();
+      if (!profile) { router.replace('/profiles'); return; }
+            const user = getCurrentUser();
+      setPlanOk(isPlanActive(user));
+      
+      await loadContent();
+      setReady(true);
+    };
+    init();
+  }, [loadContent, router]);
+
+  const handlePlay = (item) => {
+    if (!item.driveLink) return;
+    setPlayer({ item });
     setSearchOpen(false);
-    setDetailState({ open: false, movie: null, driveId: null });
   };
 
-  const handleInfo = (movie, driveId) => {
-    setDetailState({ open: true, movie, driveId });
-    setExpandedRow(null);
+  const handleSearchSelect = async (movie) => {
+    const contentItem = getContentByTmdbId(movie.id);
+    if (contentItem) {
+      handlePlay(contentItem);
+    }
   };
 
-  const closeDetail = () => setDetailState({ open: false, movie: null, driveId: null });
-
-  const handleSearchSelect = async (movie, driveId) => {
-    const full = await fetchMovie(movie.id).catch(() => movie);
-    setDetailState({ open: true, movie: full || movie, driveId });
-  };
-
-  if (!ready) return null;
+  if (!ready) return <div className="loading-spinner" />;
 
   if (player) {
     return (
-      <VideoPlayer
-        driveId={player.driveId}
-        movie={player.movie}
-        onClose={() => setPlayer(null)}
+      <VideoPlayer 
+        driveLink={player.item.driveLink} 
+        movie={player.item.tmdbData} 
+        onClose={() => setPlayer(null)} 
       />
     );
   }
@@ -68,85 +85,51 @@ export default function Home() {
     <>
       <Head>
         <title>RHFLIX — Início</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </Head>
 
-      <Navbar onSearchOpen={() => setSearchOpen(true)} />
+      <Navbar onSearch={() => setSearchOpen(true)} />
 
-      {/* Paywall banner */}
+      {/* Banner de plano inativo */}
       {!planOk && (
-        <div style={{
-          position:'fixed', bottom:0, left:0, right:0, zIndex:700,
-          background:'rgba(8,8,8,.97)',
-          borderTop:'1px solid rgba(229,9,20,.25)',
-          padding:'16px 4%',
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-          flexWrap:'wrap', gap:12,
-          backdropFilter:'blur(16px)',
-        }}>
-          <div>
-            <div style={{ fontWeight:700, color:'#fff', marginBottom:4, fontSize:'.92rem' }}>
-              Seu acesso está inativo
-            </div>
-            <div style={{ fontSize:'.82rem', color:'var(--muted)' }}>
-              Insira um código de recarga para assistir ao conteúdo.
-            </div>
-          </div>
-          <button className="btn btn-red btn-sm" onClick={() => router.push('/profiles')}>
-            Inserir código
-          </button>
-        </div>
+        <div className="paywall-banner">
+          <span>⚠️ Seu acesso está inativo</span>
+          <button onClick={() => router.push('/profiles')}>
+            Inserir código de recarga
+          </button>        </div>
       )}
 
-      <main className="page-fade" style={{ paddingBottom: planOk ? 40 : 100 }}>
-        <Hero onPlay={handlePlay} onInfo={handleInfo} />
-
-        {/* Inline detail panel */}
-        {detailState.open && (
-          <div style={{ marginTop:-20, position:'relative', zIndex:10 }}>
-            <MovieDetail
-              movie={detailState.movie}
-              driveId={detailState.driveId}
-              open={detailState.open}
-              onClose={closeDetail}
-              onPlay={(movie, driveId) => {
-                closeDetail();
-                handlePlay(movie, driveId);
-              }}
-            />
+      {/* Grid de filmes */}
+      <main className="content-grid">
+        {loading ? (
+          <div className="skeleton-grid">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="skeleton-card" />
+            ))}
+          </div>
+        ) : content.length > 0 ? (
+          <div className="movie-grid">
+            {content.map((item) => (
+              <MovieCard 
+                key={item.tmdbId}
+                movie={item.tmdbData}
+                onPlay={() => handlePlay(item)}
+                disabled={!planOk}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <p>Nenhum conteúdo disponível no momento.</p>
           </div>
         )}
-
-        {CATEGORIES.map(cat => (
-          <MovieRow
-            key={cat.key}
-            category={cat.key}
-            label={cat.label}
-            onPlay={handlePlay}
-            globalExpanded={expandedRow}
-            onExpand={setExpandedRow}
-          />
-        ))}
       </main>
 
-      <SearchOverlay
-        open={searchOpen}
+      <SearchOverlay 
+        isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
         onSelect={handleSearchSelect}
       />
-
-      <footer style={{
-        borderTop:'1px solid var(--border)',
-        padding:'28px 4%',
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        flexWrap:'wrap', gap:10,
-      }}>
-        <span style={{ fontFamily:'var(--display)', fontSize:'1.3rem', letterSpacing:'2px', color:'var(--red)' }}>
-          RHFLIX
-        </span>
-        <span style={{ fontSize:'.75rem', color:'var(--muted)' }}>
-          Conteúdo hospedado por terceiros. RHFLIX não armazena arquivos.
-        </span>
-      </footer>
     </>
   );
-}
+                       }
